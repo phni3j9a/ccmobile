@@ -55,7 +55,7 @@ function listTmuxSessions() {
 function createTmuxSession(sessionName) {
   const fullName = sessionName.startsWith(SESSION_PREFIX) ? sessionName : SESSION_PREFIX + sessionName;
   try {
-    execSync(`tmux new-session -d -s "${fullName}"`, { encoding: 'utf-8' });
+    execSync(`tmux new-session -d -s "${fullName}" -c "${process.env.HOME}"`, { encoding: 'utf-8' });
 
     // tmux設定を適用（マウス操作有効化、スクロールバッファ増加）
     try {

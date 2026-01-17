@@ -19,17 +19,12 @@
     const fontDecrease = document.getElementById('font-decrease');
     const fontIncrease = document.getElementById('font-increase');
     const fontSizeDisplay = document.getElementById('font-size-display');
-    const newCmdInput = document.getElementById('new-cmd-input');
-    const addCmdBtn = document.getElementById('add-cmd-btn');
-    const customCommandsContainer = document.getElementById('custom-commands');
 
     // 設定
     const FONT_SIZE_MIN = 10;
     const FONT_SIZE_MAX = 24;
     const STORAGE_KEY_FONT_SIZE = 'terminal-font-size';
-    const STORAGE_KEY_CUSTOM_CMDS = 'terminal-custom-commands';
     const STORAGE_KEY_LAST_SESSION = 'terminal-last-session';
-    const STORAGE_KEY_AUTO_CONNECT = 'terminal-auto-connect';
 
     // セッション管理UI要素
     const sessionManager = document.getElementById('session-manager');
@@ -40,7 +35,6 @@
     let ctrlActive = false;
     let scrollModeActive = false;
     let currentFontSize = parseInt(localStorage.getItem(STORAGE_KEY_FONT_SIZE)) || 14;
-    let customCommands = JSON.parse(localStorage.getItem(STORAGE_KEY_CUSTOM_CMDS) || '[]');
     let term = null;
     let socket = null;
     let currentSessionName = null;
@@ -673,7 +667,6 @@
     function openSettings() {
       settingsPanel.classList.remove('hidden');
       settingsOverlay.classList.remove('hidden');
-      renderCustomCommands();
     }
 
     function closeSettings() {
@@ -706,66 +699,11 @@
 
     fontSizeDisplay.textContent = currentFontSize + 'px';
 
-    // カスタムコマンド
-    function renderCustomCommands() {
-      const existingItems = customCommandsContainer.querySelectorAll('.custom-cmd-item');
-      existingItems.forEach(item => item.remove());
-
-      customCommands.forEach((cmd, index) => {
-        const item = document.createElement('div');
-        item.className = 'custom-cmd-item';
-        item.innerHTML = `
-          <span>${escapeHtml(cmd)}</span>
-          <button data-index="${index}">削除</button>
-        `;
-        customCommandsContainer.insertBefore(item, customCommandsContainer.querySelector('.custom-cmd-input'));
-      });
-    }
-
     function escapeHtml(text) {
       const div = document.createElement('div');
       div.textContent = text;
       return div.innerHTML;
     }
-
-    function addCustomCommand(cmd) {
-      if (cmd && !customCommands.includes(cmd)) {
-        customCommands.push(cmd);
-        localStorage.setItem(STORAGE_KEY_CUSTOM_CMDS, JSON.stringify(customCommands));
-        renderCustomCommands();
-      }
-    }
-
-    function removeCustomCommand(index) {
-      customCommands.splice(index, 1);
-      localStorage.setItem(STORAGE_KEY_CUSTOM_CMDS, JSON.stringify(customCommands));
-      renderCustomCommands();
-    }
-
-    addCmdBtn.addEventListener('click', () => {
-      const cmd = newCmdInput.value.trim();
-      if (cmd) {
-        addCustomCommand(cmd);
-        newCmdInput.value = '';
-      }
-    });
-
-    newCmdInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
-        const cmd = newCmdInput.value.trim();
-        if (cmd) {
-          addCustomCommand(cmd);
-          newCmdInput.value = '';
-        }
-      }
-    });
-
-    customCommandsContainer.addEventListener('click', (e) => {
-      const btn = e.target.closest('button[data-index]');
-      if (btn) {
-        removeCustomCommand(parseInt(btn.dataset.index));
-      }
-    });
 
     // モバイルでのタッチでフォーカス（スクロールと区別）
     let touchStartX = 0;
