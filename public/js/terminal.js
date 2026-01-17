@@ -604,6 +604,9 @@
       // preventDefaultは呼ばない（スクロールを許可）
     }, { passive: true });
 
+    // touchendで処理済みフラグ（iOS Safariでclickイベントを抑制するため）
+    let toolbarTouchEndProcessed = false;
+
     specialKeysToolbar.addEventListener('touchend', (e) => {
       const btn = e.target.closest('.key-btn');
       if (!btn) return;
@@ -632,10 +635,16 @@
       if (wasTerminalFocused) {
         term.focus();
       }
+
+      // touchendで処理済みフラグをセット（clickイベント抑制用）
+      toolbarTouchEndProcessed = true;
+      setTimeout(() => { toolbarTouchEndProcessed = false; }, 400);
     });
 
     // デスクトップ向けクリックハンドラ（タッチイベントがない環境用）
     specialKeysToolbar.addEventListener('click', (e) => {
+      // touchendで処理済みならスキップ（iOS Safari対応）
+      if (toolbarTouchEndProcessed) return;
       // タッチデバイスではtouchendで処理済みなのでスキップ
       if (e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) return;
 
