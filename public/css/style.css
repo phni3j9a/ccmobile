@@ -1,0 +1,609 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background-color: #1e1e1e;
+  touch-action: manipulation;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* ===========================================
+   セッション管理UI
+   =========================================== */
+#session-manager {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #1e1e1e;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.session-manager-content {
+  width: 100%;
+  max-width: 400px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+#session-manager h2 {
+  color: #fff;
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+#session-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.session-item {
+  background: #2d2d2d;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.session-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.session-name {
+  display: block;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.session-meta {
+  display: block;
+  color: #888;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.session-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.session-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.session-btn.connect-btn {
+  background: #007acc;
+  color: white;
+}
+
+.session-btn.connect-btn:hover,
+.session-btn.connect-btn:active {
+  background: #0088e0;
+}
+
+.session-btn.delete-btn {
+  background: #3d3d3d;
+  color: #f87171;
+}
+
+.session-btn.delete-btn:hover,
+.session-btn.delete-btn:active {
+  background: #c72e2e;
+  color: white;
+}
+
+.session-btn.new-btn {
+  width: 100%;
+  padding: 14px 20px;
+  background: #16825d;
+  color: white;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.session-btn.new-btn:hover,
+.session-btn.new-btn:active {
+  background: #1a9968;
+}
+
+.session-empty {
+  text-align: center;
+  color: #888;
+  padding: 40px 20px;
+  font-size: 14px;
+}
+
+/* オフラインバナー */
+#offline-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  background-color: #c72e2e;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  z-index: 1000;
+}
+
+#offline-banner button {
+  background: white;
+  color: #c72e2e;
+  border: none;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* クイックアクションボタン */
+#quick-actions {
+  display: none;
+}
+
+/* ターミナルコンテナ */
+#terminal-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 30px;
+  padding: 4px;
+}
+
+#terminal {
+  width: 100%;
+  height: 100%;
+}
+
+/* 特殊キーツールバー */
+#special-keys-toolbar {
+  display: none;
+}
+
+/* ステータスバー */
+#status-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 30px;
+  background-color: #007acc;
+  color: white;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 12px;
+  gap: 8px;
+}
+
+#status-bar.connected {
+  background-color: #16825d;
+}
+
+#status-bar.disconnected {
+  background-color: #c72e2e;
+}
+
+#status-bar.reconnecting {
+  background-color: #d97706;
+}
+
+#connection-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: currentColor;
+  flex-shrink: 0;
+}
+
+#status-bar.connected #connection-indicator {
+  background-color: #4ade80;
+}
+
+#status-bar.disconnected #connection-indicator {
+  background-color: #f87171;
+}
+
+#status-bar.reconnecting #connection-indicator {
+  background-color: #fbbf24;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+#status-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* コピーボタン（フローティング） */
+#copy-btn {
+  position: fixed;
+  background: #007acc;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+/* 設定パネル */
+#settings-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 999;
+}
+
+#settings-panel {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #2d2d2d;
+  border-radius: 16px 16px 0 0;
+  z-index: 1000;
+  max-height: 60vh;
+  overflow-y: auto;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #444;
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.settings-header button {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.settings-content {
+  padding: 16px 20px;
+}
+
+.setting-item {
+  margin-bottom: 20px;
+}
+
+.setting-item label {
+  display: block;
+  color: #aaa;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.font-size-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.font-size-controls button {
+  width: 40px;
+  height: 40px;
+  border: 1px solid #555;
+  background: #3d3d3d;
+  color: white;
+  border-radius: 8px;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.font-size-controls button:active {
+  background: #4d4d4d;
+}
+
+#font-size-display {
+  color: white;
+  font-size: 16px;
+  min-width: 50px;
+  text-align: center;
+}
+
+.custom-commands {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.custom-cmd-input {
+  display: flex;
+  gap: 8px;
+}
+
+.custom-cmd-input input {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid #555;
+  background: #3d3d3d;
+  color: white;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.custom-cmd-input input::placeholder {
+  color: #888;
+}
+
+.custom-cmd-input button,
+.custom-cmd-item button {
+  padding: 10px 16px;
+  border: none;
+  background: #007acc;
+  color: white;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.custom-cmd-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #3d3d3d;
+  border-radius: 8px;
+}
+
+.custom-cmd-item span {
+  color: white;
+  font-family: monospace;
+}
+
+.custom-cmd-item button {
+  background: #c72e2e;
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+/* タッチデバイス対応（モバイル） */
+@media (hover: none) and (pointer: coarse) {
+  /* クイックアクションボタン表示 */
+  #quick-actions {
+    display: flex;
+    position: fixed;
+    top: env(safe-area-inset-top, 8px);
+    right: 8px;
+    gap: 6px;
+    z-index: 50;
+    padding-top: 8px;
+    align-items: center;
+  }
+
+  #quick-actions-buttons {
+    display: flex;
+    gap: 6px;
+    transition: opacity 0.2s, transform 0.2s;
+  }
+
+  #quick-actions.collapsed #quick-actions-buttons {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(10px);
+    position: absolute;
+    right: 0;
+  }
+
+  #quick-actions.collapsed #quick-actions-toggle {
+    transform: rotate(180deg);
+  }
+
+  .quick-btn {
+    padding: 8px 12px;
+    background: rgba(45, 45, 45, 0.9);
+    color: white;
+    border: 1px solid #555;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: monospace;
+    cursor: pointer;
+  }
+
+  .quick-btn:active {
+    background: #4d4d4d;
+  }
+
+  .quick-btn.settings-btn {
+    font-size: 16px;
+    padding: 8px 10px;
+  }
+
+  .quick-btn.toggle-btn {
+    padding: 8px 6px;
+    font-size: 10px;
+    transition: transform 0.2s;
+  }
+
+  /* ターミナルコンテナ調整 */
+  #terminal-container {
+    top: 0;
+    bottom: 80px;
+    padding: 2px;
+  }
+
+  /* 特殊キーツールバー表示 */
+  #special-keys-toolbar {
+    display: flex;
+    position: fixed;
+    bottom: 36px;
+    left: 0;
+    right: 0;
+    height: 44px;
+    background: #2d2d2d;
+    border-top: 1px solid #444;
+    align-items: center;
+    padding: 0 4px;
+    gap: 4px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    z-index: 50;
+  }
+
+  #special-keys-toolbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .key-btn {
+    flex-shrink: 0;
+    min-width: 40px;
+    height: 36px;
+    padding: 0 10px;
+    background: #3d3d3d;
+    color: white;
+    border: 1px solid #555;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: -apple-system, BlinkMacSystemFont, monospace;
+    cursor: pointer;
+  }
+
+  .key-btn:active {
+    background: #5d5d5d;
+  }
+
+  .key-btn.ctrl-btn.active {
+    background: #007acc;
+    border-color: #007acc;
+  }
+
+  .key-btn.paste-btn {
+    font-size: 16px;
+    margin-left: auto;
+  }
+
+  /* ステータスバー調整 */
+  #status-bar {
+    height: 36px;
+    font-size: 14px;
+  }
+}
+
+/* キーボード表示時のレイアウト調整 */
+body.keyboard-visible #terminal-container {
+  bottom: calc(var(--keyboard-height, 0px) + 80px);
+}
+
+body.keyboard-visible #special-keys-toolbar {
+  bottom: calc(var(--keyboard-height, 0px) + 36px);
+}
+
+body.keyboard-visible #status-bar {
+  bottom: var(--keyboard-height, 0px);
+}
+
+body.keyboard-visible #settings-panel {
+  bottom: var(--keyboard-height, 0px);
+}
+
+/* オフライン時のレイアウト */
+body.offline #terminal-container {
+  top: 40px;
+}
+
+body.offline #quick-actions {
+  top: calc(env(safe-area-inset-top, 8px) + 40px);
+}
+
+/* xterm.js カスタマイズ */
+.xterm {
+  padding: 4px;
+}
+
+.xterm-viewport {
+  overflow-y: auto !important;
+}
+
+.xterm-viewport::-webkit-scrollbar {
+  width: 10px;
+}
+
+.xterm-viewport::-webkit-scrollbar-track {
+  background: #1e1e1e;
+}
+
+.xterm-viewport::-webkit-scrollbar-thumb {
+  background: #424242;
+  border-radius: 5px;
+}
+
+.xterm-viewport::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* PWA スタンドアロンモード */
+@media (display-mode: standalone) {
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* 画面回転時のフラッシュ防止 */
+@media screen and (orientation: portrait),
+       screen and (orientation: landscape) {
+  html {
+    background-color: #1e1e1e;
+  }
+}

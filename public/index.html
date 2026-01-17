@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#1e1e1e">
+  <title>Claude Code Web Terminal</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icons/icon.svg">
+  <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+
+  <!-- xterm.js -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css">
+  <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-unicode11@0.6.0/lib/xterm-addon-unicode11.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.js"></script>
+
+  <!-- Socket.io -->
+  <script src="/socket.io/socket.io.js"></script>
+
+  <!-- カスタムスタイル -->
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <!-- オフラインバナー -->
+  <div id="offline-banner" class="hidden">
+    <span>オフライン - 接続が切断されました</span>
+    <button id="reconnect-btn">再接続</button>
+  </div>
+
+  <!-- セッション管理パネル -->
+  <div id="session-manager" class="hidden">
+    <div class="session-manager-content">
+      <h2>セッション</h2>
+      <div id="session-list"></div>
+      <button id="new-session-btn" class="session-btn new-btn">＋ 新しいセッション</button>
+    </div>
+  </div>
+
+  <!-- クイックアクションボタン -->
+  <div id="quick-actions">
+    <button class="quick-btn toggle-btn" id="quick-actions-toggle">◀</button>
+    <div id="quick-actions-buttons">
+      <button class="quick-btn" data-cmd="claude">claude</button>
+      <button class="quick-btn" data-cmd="clear">clear</button>
+      <button class="quick-btn" data-cmd="exit">exit</button>
+      <button class="quick-btn settings-btn" id="settings-toggle">⚙</button>
+    </div>
+  </div>
+
+  <!-- ターミナルコンテナ -->
+  <div id="terminal-container">
+    <div id="terminal"></div>
+  </div>
+
+  <!-- 特殊キーツールバー -->
+  <div id="special-keys-toolbar">
+    <button class="key-btn" data-key="Escape">Esc</button>
+    <button class="key-btn" data-key="Tab">Tab</button>
+    <button class="key-btn ctrl-btn" id="ctrl-toggle">Ctrl</button>
+    <button class="key-btn" data-key="ArrowUp">↑</button>
+    <button class="key-btn" data-key="ArrowDown">↓</button>
+    <button class="key-btn" data-key="ArrowLeft">←</button>
+    <button class="key-btn" data-key="ArrowRight">→</button>
+    <button class="key-btn" data-key="PageUp">PgUp</button>
+    <button class="key-btn" data-key="PageDown">PgDn</button>
+    <button class="key-btn" data-ctrl="c">^C</button>
+    <button class="key-btn" data-ctrl="d">^D</button>
+    <button class="key-btn" data-ctrl="l">^L</button>
+    <button class="key-btn" data-ctrl="z">^Z</button>
+    <button class="key-btn paste-btn" id="paste-btn">📋</button>
+  </div>
+
+  <!-- ステータスバー -->
+  <div id="status-bar">
+    <span id="connection-indicator"></span>
+    <span id="status-text">接続中...</span>
+  </div>
+
+  <!-- コピーボタン（フローティング） -->
+  <button id="copy-btn" class="hidden">コピー</button>
+
+  <!-- 設定パネル -->
+  <div id="settings-panel" class="hidden">
+    <div class="settings-header">
+      <span>設定</span>
+      <button id="settings-close">✕</button>
+    </div>
+    <div class="settings-content">
+      <div class="setting-item">
+        <label>フォントサイズ</label>
+        <div class="font-size-controls">
+          <button id="font-decrease">−</button>
+          <span id="font-size-display">14px</span>
+          <button id="font-increase">+</button>
+        </div>
+      </div>
+      <div class="setting-item">
+        <label>カスタムコマンド</label>
+        <div class="custom-commands" id="custom-commands">
+          <div class="custom-cmd-input">
+            <input type="text" id="new-cmd-input" placeholder="コマンドを追加">
+            <button id="add-cmd-btn">追加</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="settings-overlay" class="hidden"></div>
+
+  <script src="/js/terminal.js"></script>
+</body>
+</html>
