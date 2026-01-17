@@ -6,7 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="theme-color" content="#1e1e1e">
+  <meta name="theme-color" content="#2B2925">
   <title>Claude Code Web Terminal</title>
 
   <!-- PWA -->
@@ -60,7 +60,9 @@
     <button class="key-btn" data-key="PageDown">PgDn</button>
     <button class="key-btn" data-key="Escape">Esc</button>
     <button class="key-btn" data-key="Tab">Tab</button>
-    <button class="key-btn ctrl-btn" id="ctrl-toggle">Ctrl</button>
+    <button class="key-btn" data-key="ShiftTab">⇧Tab</button>
+    <button class="key-btn" data-key="Enter">Enter</button>
+
     <button class="key-btn" data-key="ArrowUp">↑</button>
     <button class="key-btn" data-key="ArrowDown">↓</button>
     <button class="key-btn" data-key="ArrowLeft">←</button>
@@ -89,12 +91,26 @@
     </div>
     <div class="settings-content">
       <div class="setting-item">
+        <label>テーマ</label>
+        <div class="theme-toggle">
+          <button class="theme-btn" id="theme-light" data-theme="light">☀️ ライト</button>
+          <button class="theme-btn active" id="theme-dark" data-theme="dark">🌙 ダーク</button>
+        </div>
+      </div>
+      <div class="setting-item">
         <label>フォントサイズ</label>
         <div class="font-size-controls">
           <button id="font-decrease">−</button>
           <span id="font-size-display">14px</span>
           <button id="font-increase">+</button>
         </div>
+      </div>
+      <div class="setting-item usage-section">
+        <label>Claude Code 使用状況</label>
+        <div id="claude-usage-container">
+          <div class="usage-loading">読み込み中...</div>
+        </div>
+        <button id="refresh-usage-btn" class="refresh-btn">🔄 更新</button>
       </div>
     </div>
   </div>

@@ -5,11 +5,57 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/* ===========================================
+   Claude Theme CSS Variables
+   =========================================== */
+:root {
+  /* Dark Theme (default) */
+  --bg-primary: #2B2925;
+  --bg-secondary: #4A453D;
+  --bg-tertiary: #1E1D1A;
+  --fg-primary: #E8E4DD;
+  --fg-secondary: #6B6356;
+  --fg-muted: #9BC8C8;
+  --accent-blue: #9BB8D8;
+  --accent-blue-bright: #B5CFEB;
+  --accent-green: #8AAD8A;
+  --accent-green-bright: #A5C9A5;
+  --accent-red: #E07A5F;
+  --accent-red-bright: #F09A84;
+  --accent-yellow: #D4A574;
+  --accent-yellow-bright: #E5C99A;
+  --accent-purple: #C4A5D8;
+  --accent-cyan: #9BC8C8;
+  --accent-cyan-bright: #B5DEDE;
+  --selection-bg: rgba(74, 69, 61, 0.7);
+}
+
+[data-theme="light"] {
+  --bg-primary: #FAF9F6;
+  --bg-secondary: #E9D5C9;
+  --bg-tertiary: #F5F1EB;
+  --fg-primary: #3D3929;
+  --fg-secondary: #6B6356;
+  --fg-muted: #528B8B;
+  --accent-blue: #5B7FA3;
+  --accent-blue-bright: #7B9EC4;
+  --accent-green: #5E8E5E;
+  --accent-green-bright: #7AAD7A;
+  --accent-red: #D4726A;
+  --accent-red-bright: #E07A5F;
+  --accent-yellow: #B8860B;
+  --accent-yellow-bright: #D4A574;
+  --accent-purple: #8B6DAE;
+  --accent-cyan: #528B8B;
+  --accent-cyan-bright: #7BAFAF;
+  --selection-bg: rgba(233, 213, 201, 0.7);
+}
+
 html, body {
   height: 100%;
   width: 100%;
   overflow: hidden;
-  background-color: #1e1e1e;
+  background-color: var(--bg-primary);
   touch-action: manipulation;
 }
 
@@ -26,7 +72,7 @@ html, body {
   left: 0;
   right: 0;
   bottom: 0;
-  background: #1e1e1e;
+  background: var(--bg-primary);
   z-index: 100;
   display: flex;
   align-items: center;
@@ -43,7 +89,7 @@ html, body {
 }
 
 #session-manager h2 {
-  color: #fff;
+  color: var(--fg-primary);
   font-size: 24px;
   font-weight: 600;
   margin-bottom: 20px;
@@ -58,7 +104,7 @@ html, body {
 }
 
 .session-item {
-  background: #2d2d2d;
+  background: var(--bg-secondary);
   border-radius: 12px;
   padding: 16px;
   display: flex;
@@ -74,7 +120,7 @@ html, body {
 
 .session-name {
   display: block;
-  color: #fff;
+  color: var(--fg-primary);
   font-size: 14px;
   font-weight: 500;
   font-family: monospace;
@@ -85,7 +131,7 @@ html, body {
 
 .session-meta {
   display: block;
-  color: #888;
+  color: var(--fg-secondary);
   font-size: 12px;
   margin-top: 4px;
 }
@@ -106,43 +152,43 @@ html, body {
 }
 
 .session-btn.connect-btn {
-  background: #007acc;
-  color: white;
+  background: var(--accent-blue);
+  color: var(--bg-tertiary);
 }
 
 .session-btn.connect-btn:hover,
 .session-btn.connect-btn:active {
-  background: #0088e0;
+  background: var(--accent-blue-bright);
 }
 
 .session-btn.delete-btn {
-  background: #3d3d3d;
-  color: #f87171;
+  background: var(--bg-secondary);
+  color: var(--accent-red);
 }
 
 .session-btn.delete-btn:hover,
 .session-btn.delete-btn:active {
-  background: #c72e2e;
-  color: white;
+  background: var(--accent-red);
+  color: var(--bg-tertiary);
 }
 
 .session-btn.new-btn {
   width: 100%;
   padding: 14px 20px;
-  background: #16825d;
-  color: white;
+  background: var(--accent-green);
+  color: var(--bg-tertiary);
   font-size: 16px;
   font-weight: 500;
 }
 
 .session-btn.new-btn:hover,
 .session-btn.new-btn:active {
-  background: #1a9968;
+  background: var(--accent-green-bright);
 }
 
 .session-empty {
   text-align: center;
-  color: #888;
+  color: var(--fg-secondary);
   padding: 40px 20px;
   font-size: 14px;
 }
@@ -154,8 +200,8 @@ html, body {
   left: 0;
   right: 0;
   height: 40px;
-  background-color: #c72e2e;
-  color: white;
+  background-color: var(--accent-red);
+  color: var(--bg-tertiary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -166,8 +212,8 @@ html, body {
 }
 
 #offline-banner button {
-  background: white;
-  color: #c72e2e;
+  background: var(--bg-tertiary);
+  color: var(--accent-red);
   border: none;
   padding: 4px 12px;
   border-radius: 4px;
@@ -207,8 +253,8 @@ html, body {
   left: 0;
   right: 0;
   height: 30px;
-  background-color: #007acc;
-  color: white;
+  background-color: var(--accent-blue);
+  color: var(--bg-tertiary);
   display: flex;
   align-items: center;
   padding: 0 12px;
@@ -218,15 +264,15 @@ html, body {
 }
 
 #status-bar.connected {
-  background-color: #16825d;
+  background-color: var(--accent-green);
 }
 
 #status-bar.disconnected {
-  background-color: #c72e2e;
+  background-color: var(--accent-red);
 }
 
 #status-bar.reconnecting {
-  background-color: #d97706;
+  background-color: var(--accent-yellow);
 }
 
 #connection-indicator {
@@ -238,15 +284,15 @@ html, body {
 }
 
 #status-bar.connected #connection-indicator {
-  background-color: #4ade80;
+  background-color: var(--accent-green-bright);
 }
 
 #status-bar.disconnected #connection-indicator {
-  background-color: #f87171;
+  background-color: var(--accent-red-bright);
 }
 
 #status-bar.reconnecting #connection-indicator {
-  background-color: #fbbf24;
+  background-color: var(--accent-yellow-bright);
   animation: pulse 1s infinite;
 }
 
@@ -264,8 +310,8 @@ html, body {
 /* コピーボタン（フローティング） */
 #copy-btn {
   position: fixed;
-  background: #007acc;
-  color: white;
+  background: var(--accent-blue);
+  color: var(--bg-tertiary);
   border: none;
   padding: 8px 16px;
   border-radius: 4px;
@@ -291,7 +337,7 @@ html, body {
   bottom: 0;
   left: 0;
   right: 0;
-  background: #2d2d2d;
+  background: var(--bg-secondary);
   border-radius: 16px 16px 0 0;
   z-index: 1000;
   max-height: 60vh;
@@ -304,8 +350,8 @@ html, body {
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  border-bottom: 1px solid #444;
-  color: white;
+  border-bottom: 1px solid var(--fg-secondary);
+  color: var(--fg-primary);
   font-size: 16px;
   font-weight: 600;
 }
@@ -313,7 +359,7 @@ html, body {
 .settings-header button {
   background: none;
   border: none;
-  color: #888;
+  color: var(--fg-secondary);
   font-size: 20px;
   cursor: pointer;
   padding: 4px;
@@ -329,7 +375,7 @@ html, body {
 
 .setting-item label {
   display: block;
-  color: #aaa;
+  color: var(--fg-muted);
   font-size: 14px;
   margin-bottom: 8px;
 }
@@ -343,23 +389,128 @@ html, body {
 .font-size-controls button {
   width: 40px;
   height: 40px;
-  border: 1px solid #555;
-  background: #3d3d3d;
-  color: white;
+  border: 1px solid var(--fg-secondary);
+  background: var(--bg-primary);
+  color: var(--fg-primary);
   border-radius: 8px;
   font-size: 20px;
   cursor: pointer;
 }
 
 .font-size-controls button:active {
-  background: #4d4d4d;
+  background: var(--bg-secondary);
 }
 
 #font-size-display {
-  color: white;
+  color: var(--fg-primary);
   font-size: 16px;
   min-width: 50px;
   text-align: center;
+}
+
+/* 使用量セクション */
+.usage-section {
+  border-top: 1px solid var(--fg-secondary);
+  padding-top: 16px;
+}
+
+#claude-usage-container {
+  margin-bottom: 12px;
+}
+
+.usage-loading, .usage-error {
+  color: var(--fg-secondary);
+  font-size: 14px;
+  padding: 8px 0;
+}
+
+.usage-error {
+  color: var(--accent-red);
+}
+
+.usage-item {
+  margin-bottom: 16px;
+}
+
+.usage-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.usage-label {
+  color: var(--fg-primary);
+  font-size: 13px;
+}
+
+.usage-percent {
+  color: var(--fg-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.usage-bar {
+  height: 8px;
+  background: var(--bg-primary);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.usage-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.usage-bar-fill.usage-normal {
+  background: linear-gradient(90deg, var(--accent-green), var(--accent-green-bright));
+}
+
+.usage-bar-fill.usage-warning {
+  background: linear-gradient(90deg, var(--accent-yellow), var(--accent-yellow-bright));
+}
+
+.usage-bar-fill.usage-critical {
+  background: linear-gradient(90deg, var(--accent-red), var(--accent-red-bright));
+}
+
+.usage-subtext {
+  color: var(--fg-secondary);
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+.subscription-type {
+  color: var(--fg-secondary);
+  font-size: 12px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--bg-primary);
+}
+
+.refresh-btn {
+  width: 100%;
+  padding: 10px;
+  background: var(--bg-primary);
+  color: var(--fg-primary);
+  border: 1px solid var(--fg-secondary);
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.refresh-btn:hover, .refresh-btn:active {
+  background: var(--bg-secondary);
+}
+
+/* セッション編集ボタン */
+.session-btn.edit-btn {
+  background: var(--bg-primary);
+  color: var(--fg-primary);
+  padding: 8px 10px;
+  font-size: 14px;
 }
 
 .custom-commands {
@@ -376,15 +527,15 @@ html, body {
 .custom-cmd-input input {
   flex: 1;
   padding: 10px 12px;
-  border: 1px solid #555;
-  background: #3d3d3d;
-  color: white;
+  border: 1px solid var(--fg-secondary);
+  background: var(--bg-primary);
+  color: var(--fg-primary);
   border-radius: 8px;
   font-size: 14px;
 }
 
 .custom-cmd-input input::placeholder {
-  color: #888;
+  color: var(--fg-secondary);
 }
 
 /* タッチデバイス対応（モバイル） */
@@ -401,9 +552,9 @@ html, body {
 
   .quick-btn {
     padding: 8px 12px;
-    background: rgba(45, 45, 45, 0.9);
-    color: white;
-    border: 1px solid #555;
+    background: var(--bg-secondary);
+    color: var(--fg-primary);
+    border: 1px solid var(--fg-secondary);
     border-radius: 6px;
     font-size: 12px;
     font-family: monospace;
@@ -411,7 +562,7 @@ html, body {
   }
 
   .quick-btn:active {
-    background: #4d4d4d;
+    background: var(--fg-secondary);
   }
 
   .quick-btn.settings-btn {
@@ -429,17 +580,19 @@ html, body {
   /* 特殊キーツールバー表示 */
   #special-keys-toolbar {
     display: flex;
+    flex-wrap: nowrap;
     position: fixed;
     bottom: 36px;
     left: 0;
     right: 0;
     height: 44px;
-    background: #2d2d2d;
-    border-top: 1px solid #444;
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--fg-secondary);
     align-items: center;
     padding: 0 4px;
     gap: 4px;
     overflow-x: auto;
+    overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
     z-index: 50;
   }
@@ -453,9 +606,9 @@ html, body {
     min-width: 40px;
     height: 36px;
     padding: 0 10px;
-    background: #3d3d3d;
-    color: white;
-    border: 1px solid #555;
+    background: var(--bg-primary);
+    color: var(--fg-primary);
+    border: 1px solid var(--fg-secondary);
     border-radius: 6px;
     font-size: 13px;
     font-family: -apple-system, BlinkMacSystemFont, monospace;
@@ -463,12 +616,7 @@ html, body {
   }
 
   .key-btn:active {
-    background: #5d5d5d;
-  }
-
-  .key-btn.ctrl-btn.active {
-    background: #007acc;
-    border-color: #007acc;
+    background: var(--fg-secondary);
   }
 
   .key-btn.paste-btn {
@@ -478,14 +626,15 @@ html, body {
 
   .key-btn.scroll-btn {
     font-size: 16px;
-    background: #2d5a27;
-    border-color: #3d7a37;
+    background: var(--accent-green);
+    border-color: var(--accent-green-bright);
+    color: var(--bg-tertiary);
   }
 
   .key-btn.scroll-btn:active,
   .key-btn.scroll-btn.active {
-    background: #4a9d3f;
-    border-color: #5ab84f;
+    background: var(--accent-green-bright);
+    border-color: var(--accent-cyan-bright);
   }
 
   /* ステータスバー調整 */
@@ -543,16 +692,16 @@ body.offline #quick-actions {
 }
 
 .xterm-viewport::-webkit-scrollbar-track {
-  background: #1e1e1e;
+  background: var(--bg-primary);
 }
 
 .xterm-viewport::-webkit-scrollbar-thumb {
-  background: #424242;
+  background: var(--fg-secondary);
   border-radius: 5px;
 }
 
 .xterm-viewport::-webkit-scrollbar-thumb:hover {
-  background: #555;
+  background: var(--bg-secondary);
 }
 
 /* PWA スタンドアロンモード */
@@ -567,6 +716,34 @@ body.offline #quick-actions {
 @media screen and (orientation: portrait),
        screen and (orientation: landscape) {
   html {
-    background-color: #1e1e1e;
+    background-color: var(--bg-primary);
   }
+}
+
+/* テーマ切り替えボタン */
+.theme-toggle {
+  display: flex;
+  gap: 8px;
+}
+
+.theme-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border: 1px solid var(--fg-secondary);
+  background: var(--bg-primary);
+  color: var(--fg-primary);
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.theme-btn:active {
+  background: var(--bg-secondary);
+}
+
+.theme-btn.active {
+  background: var(--accent-blue);
+  color: var(--bg-tertiary);
+  border-color: var(--accent-blue);
 }

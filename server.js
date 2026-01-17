@@ -63,6 +63,8 @@ function createTmuxSession(sessionName) {
       execSync(`tmux set-option -t "${fullName}" history-limit 10000`, { encoding: 'utf-8' });
       // Escキーの遅延を減らす（vimなどでの操作性向上）
       execSync(`tmux set-option -t "${fullName}" escape-time 10`, { encoding: 'utf-8' });
+      // viモードに設定（Ctrl+u/dで半ページスクロール可能にする）
+      execSync(`tmux set-window-option -t "${fullName}" mode-keys vi`, { encoding: 'utf-8' });
     } catch (configErr) {
       console.error('tmux設定エラー（続行）:', configErr.message);
     }
@@ -82,6 +84,7 @@ function applyTmuxSettings(sessionName) {
     execSync(`tmux set-option -t "${fullName}" mouse on 2>/dev/null`, { encoding: 'utf-8' });
     execSync(`tmux set-option -t "${fullName}" history-limit 10000 2>/dev/null`, { encoding: 'utf-8' });
     execSync(`tmux set-option -t "${fullName}" escape-time 10 2>/dev/null`, { encoding: 'utf-8' });
+    execSync(`tmux set-window-option -t "${fullName}" mode-keys vi 2>/dev/null`, { encoding: 'utf-8' });
   } catch (e) {
     // 設定エラーは無視（既に設定済みの場合など）
   }
@@ -160,6 +163,95 @@ app.delete('/api/sessions/:name', (req, res) => {
     res.json({ success: true });
   } else {
     res.status(500).json({ success: false, error: result.error });
+  }
+});
+
+// セッション名変更
+app.put('/api/sessions/:name/rename', (req, res) => {
+  const { name } = req.params;
+  const { newName } = req.body;
+  
+  if (!newName || newName.trim() === '') {
+    return res.status(400).json({ success: false, error: '新しい名前を指定してください' });
+  }
+  
+  const oldFullName = name.startsWith(SESSION_PREFIX) ? name : SESSION_PREFIX + name;
+  const newFullName = SESSION_PREFIX + newName.trim();
+  
+  try {
+    execSync(`tmux rename-session -t "${oldFullName}" "${newFullName}"`, { encoding: 'utf-8' });
+    console.log('tmuxセッション名変更:', oldFullName, '->', newFullName);
+    res.json({ success: true, name: newFullName, displayName: newName.trim() });
+  } catch (e) {
+    console.error('tmuxセッション名変更エラー:', e.message);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Claude Code使用量取得
+app.get('/api/usage/claude', async (req, res) => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const https = require('https');
+    
+    const credentialsPath = path.join(process.env.HOME, '.claude', '.credentials.json');
+    
+    if (!fs.existsSync(credentialsPath)) {
+      return res.json({ success: false, error: 'Claude Code認証情報が見つかりません' });
+    }
+    
+    const credentials = JSON.parse(fs.readFileSync(credentialsPath, 'utf-8'));
+    const oauth = credentials.claudeAiOauth;
+    
+    if (!oauth || !oauth.accessToken) {
+      return res.json({ success: false, error: 'アクセストークンが見つかりません' });
+    }
+    
+    // トークンの有効期限チェック
+    if (oauth.expiresAt && Date.now() > oauth.expiresAt) {
+      return res.json({ success: false, error: 'トークンの有効期限が切れています' });
+    }
+    
+    const options = {
+      hostname: 'api.anthropic.com',
+      path: '/api/oauth/usage',
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${oauth.accessToken}`,
+        'anthropic-beta': 'oauth-2025-04-20'
+      }
+    };
+    
+    const apiReq = https.request(options, (apiRes) => {
+      let data = '';
+      apiRes.on('data', chunk => data += chunk);
+      apiRes.on('end', () => {
+        try {
+          const usage = JSON.parse(data);
+          res.json({ 
+            success: true, 
+            usage,
+            subscriptionType: oauth.subscriptionType || 'unknown'
+          });
+        } catch (e) {
+          res.json({ success: false, error: 'レスポンスの解析に失敗しました' });
+        }
+      });
+    });
+    
+    apiReq.on('error', (e) => {
+      res.json({ success: false, error: e.message });
+    });
+    
+    apiReq.setTimeout(5000, () => {
+      apiReq.destroy();
+      res.json({ success: false, error: 'タイムアウト' });
+    });
+    
+    apiReq.end();
+  } catch (e) {
+    res.json({ success: false, error: e.message });
   }
 });
 
