@@ -12,8 +12,6 @@
     const scrollModeBtn = document.getElementById('scroll-mode-btn');
     const pasteBtn = document.getElementById('paste-btn');
     const copyBtn = document.getElementById('copy-btn');
-    const quickActions = document.getElementById('quick-actions');
-    const quickActionsToggle = document.getElementById('quick-actions-toggle');
     const settingsToggle = document.getElementById('settings-toggle');
     const settingsPanel = document.getElementById('settings-panel');
     const settingsOverlay = document.getElementById('settings-overlay');
@@ -505,9 +503,19 @@
       // スクロール/ナビゲーション系キーはキーボードを出さない
       const noFocusKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown'];
 
-      if (keyMap[key]) {
+      // スクロールモード時はPgUp/PgDnを半ページスクロール(Ctrl+u/Ctrl+d)に変換
+      let keyToSend = keyMap[key];
+      if (scrollModeActive) {
+        if (key === 'PageUp') {
+          keyToSend = '\x15'; // Ctrl+u (half page up)
+        } else if (key === 'PageDown') {
+          keyToSend = '\x04'; // Ctrl+d (half page down)
+        }
+      }
+
+      if (keyToSend) {
         if (socket && socket.connected) {
-          socket.emit('input', keyMap[key]);
+          socket.emit('input', keyToSend);
         }
         if (!noFocusKeys.includes(key)) {
           term.focus();
@@ -661,25 +669,6 @@
       term.focus();
     });
 
-    // クイックアクションボタン
-    quickActions.addEventListener('click', (e) => {
-      const btn = e.target.closest('.quick-btn');
-      if (!btn || btn.id === 'settings-toggle' || btn.id === 'quick-actions-toggle') return;
-
-      e.preventDefault(); // iOS Safari: フォーカス喪失防止
-      
-      const cmd = btn.dataset.cmd;
-      if (cmd && socket && socket.connected) {
-        socket.emit('input', cmd + '\n');
-        term.focus();
-      }
-    });
-
-    // クイックアクション表示/非表示トグル
-    quickActionsToggle.addEventListener('click', () => {
-      quickActions.classList.toggle('collapsed');
-    });
-
     // 設定パネル
     function openSettings() {
       settingsPanel.classList.remove('hidden');
@@ -744,7 +733,6 @@
         customCommands.push(cmd);
         localStorage.setItem(STORAGE_KEY_CUSTOM_CMDS, JSON.stringify(customCommands));
         renderCustomCommands();
-        updateQuickActions();
       }
     }
 
@@ -752,22 +740,6 @@
       customCommands.splice(index, 1);
       localStorage.setItem(STORAGE_KEY_CUSTOM_CMDS, JSON.stringify(customCommands));
       renderCustomCommands();
-      updateQuickActions();
-    }
-
-    function updateQuickActions() {
-      // 既存のカスタムコマンドボタンを削除
-      const existingCustom = quickActions.querySelectorAll('.quick-btn.custom');
-      existingCustom.forEach(btn => btn.remove());
-
-      // カスタムコマンドボタンを追加
-      customCommands.forEach(cmd => {
-        const btn = document.createElement('button');
-        btn.className = 'quick-btn custom';
-        btn.dataset.cmd = cmd;
-        btn.textContent = cmd.length > 8 ? cmd.substring(0, 8) + '…' : cmd;
-        quickActions.insertBefore(btn, settingsToggle);
-      });
     }
 
     addCmdBtn.addEventListener('click', () => {
@@ -794,9 +766,6 @@
         removeCustomCommand(parseInt(btn.dataset.index));
       }
     });
-
-    // 初期化
-    updateQuickActions();
 
     // モバイルでのタッチでフォーカス（スクロールと区別）
     let touchStartX = 0;
