@@ -533,6 +533,18 @@ html, body {
     margin-left: auto;
   }
 
+  .key-btn.scroll-btn {
+    font-size: 16px;
+    background: #2d5a27;
+    border-color: #3d7a37;
+  }
+
+  .key-btn.scroll-btn:active,
+  .key-btn.scroll-btn.active {
+    background: #4a9d3f;
+    border-color: #5ab84f;
+  }
+
   /* ステータスバー調整 */
   #status-bar {
     height: 36px;
@@ -573,6 +585,14 @@ body.offline #quick-actions {
 
 .xterm-viewport {
   overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* iOS Safari: 非表示→表示切り替え後のスクロール問題対策 */
+#terminal-container.hidden + #terminal-container:not(.hidden) .xterm-viewport,
+#terminal .xterm-viewport {
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
 }
 
 .xterm-viewport::-webkit-scrollbar {

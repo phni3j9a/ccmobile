@@ -9,6 +9,7 @@
     const reconnectBtn = document.getElementById('reconnect-btn');
     const specialKeysToolbar = document.getElementById('special-keys-toolbar');
     const ctrlToggle = document.getElementById('ctrl-toggle');
+    const scrollModeBtn = document.getElementById('scroll-mode-btn');
     const pasteBtn = document.getElementById('paste-btn');
     const copyBtn = document.getElementById('copy-btn');
     const quickActions = document.getElementById('quick-actions');
@@ -39,6 +40,7 @@
 
     // 状態
     let ctrlActive = false;
+    let scrollModeActive = false;
     let currentFontSize = parseInt(localStorage.getItem(STORAGE_KEY_FONT_SIZE)) || 14;
     let customCommands = JSON.parse(localStorage.getItem(STORAGE_KEY_CUSTOM_CMDS) || '[]');
     let term = null;
@@ -218,6 +220,15 @@
       document.getElementById('terminal-container').classList.remove('hidden');
       // 特殊キーツールバーの表示を復元（インラインスタイルを削除してCSSに任せる）
       document.getElementById('special-keys-toolbar').style.display = '';
+      
+      // iOS Safari: 非表示→表示切り替え後のスクロール領域再計算
+      setTimeout(() => {
+        fit();
+        // xterm.jsのviewportを強制的にリフレッシュ
+        if (term && term.refresh) {
+          term.refresh(0, term.rows - 1);
+        }
+      }, 100);
     }
 
     // セッションに接続
@@ -491,11 +502,16 @@
         'PageDown': '\x1b[6~'
       };
 
+      // スクロール/ナビゲーション系キーはキーボードを出さない
+      const noFocusKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown'];
+
       if (keyMap[key]) {
         if (socket && socket.connected) {
           socket.emit('input', keyMap[key]);
         }
-        term.focus();
+        if (!noFocusKeys.includes(key)) {
+          term.focus();
+        }
       }
     }
 
@@ -514,6 +530,9 @@
       const btn = e.target.closest('.key-btn');
       if (!btn) return;
 
+      // iOS Safari: ボタンクリックでフォーカスが移動してキーボードが閉じるのを防ぐ
+      e.preventDefault();
+
       if (btn.dataset.key) {
         sendKey(btn.dataset.key);
       } else if (btn.dataset.ctrl) {
@@ -530,8 +549,11 @@
     // Ctrlトグル
     ctrlToggle.addEventListener('click', (e) => {
       e.stopPropagation();
+      e.preventDefault(); // iOS Safari: フォーカス喪失防止
       ctrlActive = !ctrlActive;
       ctrlToggle.classList.toggle('active', ctrlActive);
+      // フォーカスをターミナルに戻す
+      term.focus();
     });
 
     // ターミナルキー入力時のCtrl処理
@@ -569,7 +591,33 @@
       term.focus();
     }
 
-    pasteBtn.addEventListener('click', pasteFromClipboard);
+    pasteBtn.addEventListener('click', (e) => {
+      e.preventDefault(); // iOS Safari: フォーカス喪失防止
+      pasteFromClipboard();
+    });
+
+    // スクロールモード（tmuxコピーモード）ボタン - トグル形式
+    scrollModeBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (socket && socket.connected) {
+        if (!scrollModeActive) {
+          // コピーモードに入る
+          socket.emit('input', '\x02['); // \x02 = Ctrl+b
+          scrollModeActive = true;
+          scrollModeBtn.classList.add('active');
+          scrollModeBtn.textContent = '📜✓';
+          log('スクロールモード ON');
+        } else {
+          // コピーモードを抜ける
+          socket.emit('input', 'q');
+          scrollModeActive = false;
+          scrollModeBtn.classList.remove('active');
+          scrollModeBtn.textContent = '📜';
+          log('スクロールモード OFF');
+        }
+      }
+      // キーボードを表示しない（スクロール操作に専念）
+    });
 
     // コピー機能
     term.onSelectionChange(() => {
@@ -592,7 +640,8 @@
       copyBtn.classList.add('hidden');
     }
 
-    copyBtn.addEventListener('click', async () => {
+    copyBtn.addEventListener('click', async (e) => {
+      e.preventDefault(); // iOS Safari: フォーカス喪失防止
       const selection = term.getSelection();
       if (selection) {
         try {
@@ -617,6 +666,8 @@
       const btn = e.target.closest('.quick-btn');
       if (!btn || btn.id === 'settings-toggle' || btn.id === 'quick-actions-toggle') return;
 
+      e.preventDefault(); // iOS Safari: フォーカス喪失防止
+      
       const cmd = btn.dataset.cmd;
       if (cmd && socket && socket.connected) {
         socket.emit('input', cmd + '\n');
