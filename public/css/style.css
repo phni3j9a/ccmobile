@@ -520,6 +520,27 @@ html, body {
   background: var(--bg-secondary);
 }
 
+/* セッション操作セクション */
+.session-section {
+  border-top: 1px solid var(--fg-secondary);
+  padding-top: 16px;
+}
+
+.session-control-btn {
+  width: 100%;
+  padding: 12px 16px;
+  background: var(--accent-blue);
+  color: var(--bg-tertiary);
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.session-control-btn:active {
+  opacity: 0.8;
+}
+
 /* セッション編集ボタン */
 .session-btn.edit-btn {
   background: var(--bg-primary);

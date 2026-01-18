@@ -19,6 +19,7 @@
     const fontDecrease = document.getElementById('font-decrease');
     const fontIncrease = document.getElementById('font-increase');
     const fontSizeDisplay = document.getElementById('font-size-display');
+    const detachSessionBtn = document.getElementById('detach-session-btn');
 
     // 設定
     const FONT_SIZE_MIN = 10;
@@ -422,10 +423,16 @@
     });
 
     // tmuxセッションからデタッチ
-    socket.on('detached', ({ sessionName }) => {
+    socket.on('detached', async ({ sessionName }) => {
       log('セッションデタッチ: ' + sessionName);
       isAttached = false;
+      currentSessionName = null;
       term.write('\r\n\x1b[33m[セッションから切断されました]\x1b[0m\r\n');
+
+      // セッション一覧を取得して表示
+      const sessions = await fetchSessions();
+      renderSessionList(sessions);
+      showSessionManager();
     });
 
     // サーバーからのエラー
@@ -845,6 +852,23 @@
       term.focus();
     }
 
+    // セッションデタッチ（切断）
+    function detachSession() {
+      if (!isAttached || !currentSessionName) {
+        log('デタッチ: 接続中のセッションがありません');
+        return;
+      }
+
+      log('セッションデタッチ: ' + currentSessionName);
+
+      // tmuxのデタッチコマンドを送信 (Ctrl+b d)
+      if (socket && socket.connected) {
+        socket.emit('input', '\x02d');
+      }
+
+      closeSettings();
+    }
+
     // Claude Code使用量を取得・表示
     async function fetchClaudeUsage() {
       const container = document.getElementById('claude-usage-container');
@@ -920,6 +944,11 @@
     settingsToggle.addEventListener('click', openSettings);
     settingsClose.addEventListener('click', closeSettings);
     settingsOverlay.addEventListener('click', closeSettings);
+
+    // セッション切断ボタン
+    if (detachSessionBtn) {
+      detachSessionBtn.addEventListener('click', detachSession);
+    }
 
     // フォントサイズ調整
     function updateFontSize(size) {
