@@ -188,6 +188,151 @@ app.put('/api/sessions/:name/rename', (req, res) => {
   }
 });
 
+// ===========================================
+// OAuthトークン管理
+// ===========================================
+
+const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000; // 5分前にリフレッシュ
+
+// Anthropic APIでアクセストークンを更新
+async function refreshAccessToken(refreshToken) {
+  const https = require('https');
+
+  return new Promise((resolve, reject) => {
+    const postData = new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken
+    }).toString();
+
+    const options = {
+      hostname: 'console.anthropic.com',
+      path: '/v1/oauth/token',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Length': Buffer.byteLength(postData)
+      }
+    };
+
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          const result = JSON.parse(data);
+          if (res.statusCode === 200 && result.access_token) {
+            resolve({
+              success: true,
+              accessToken: result.access_token,
+              refreshToken: result.refresh_token || refreshToken,
+              expiresIn: result.expires_in
+            });
+          } else {
+            resolve({
+              success: false,
+              error: result.error_description || result.error || 'トークン更新に失敗しました',
+              requireReauth: true
+            });
+          }
+        } catch (e) {
+          reject(new Error('レスポンスの解析に失敗しました'));
+        }
+      });
+    });
+
+    req.on('error', (e) => {
+      reject(e);
+    });
+
+    req.setTimeout(10000, () => {
+      req.destroy();
+      reject(new Error('タイムアウト'));
+    });
+
+    req.write(postData);
+    req.end();
+  });
+}
+
+// credentials.jsonを更新
+function updateCredentials(newTokenData) {
+  const fs = require('fs');
+  const path = require('path');
+
+  const credentialsPath = path.join(process.env.HOME, '.claude', '.credentials.json');
+
+  try {
+    const credentials = JSON.parse(fs.readFileSync(credentialsPath, 'utf-8'));
+
+    credentials.claudeAiOauth.accessToken = newTokenData.accessToken;
+    if (newTokenData.refreshToken) {
+      credentials.claudeAiOauth.refreshToken = newTokenData.refreshToken;
+    }
+    if (newTokenData.expiresIn) {
+      credentials.claudeAiOauth.expiresAt = Date.now() + (newTokenData.expiresIn * 1000);
+    }
+
+    fs.writeFileSync(credentialsPath, JSON.stringify(credentials, null, 2), 'utf-8');
+    console.log('credentials.json更新完了');
+    return true;
+  } catch (e) {
+    console.error('credentials.json更新エラー:', e.message);
+    return false;
+  }
+}
+
+// トークンを検証し、必要に応じてリフレッシュ
+async function ensureValidToken(oauth) {
+  // expiresAtがない場合は有効とみなす
+  if (!oauth.expiresAt) {
+    return { valid: true, accessToken: oauth.accessToken };
+  }
+
+  const now = Date.now();
+  const expiresAt = oauth.expiresAt;
+
+  // バッファ時間を考慮して、期限切れ5分前からリフレッシュを試みる
+  if (now < expiresAt - TOKEN_REFRESH_BUFFER_MS) {
+    // トークンはまだ有効
+    return { valid: true, accessToken: oauth.accessToken };
+  }
+
+  // リフレッシュトークンがない場合
+  if (!oauth.refreshToken) {
+    return {
+      valid: false,
+      error: 'トークンの有効期限が切れています。Claude Codeで再認証してください',
+      requireReauth: true
+    };
+  }
+
+  console.log('トークンリフレッシュを実行中...');
+
+  try {
+    const result = await refreshAccessToken(oauth.refreshToken);
+
+    if (result.success) {
+      // credentials.jsonを更新
+      updateCredentials(result);
+      console.log('トークンリフレッシュ成功');
+      return { valid: true, accessToken: result.accessToken };
+    } else {
+      return {
+        valid: false,
+        error: result.error || 'トークン更新に失敗しました',
+        requireReauth: result.requireReauth
+      };
+    }
+  } catch (e) {
+    console.error('トークンリフレッシュエラー:', e.message);
+    return {
+      valid: false,
+      error: 'トークン更新中にエラーが発生しました: ' + e.message,
+      requireReauth: false
+    };
+  }
+}
+
 // Claude Code使用量取得
 app.get('/api/usage/claude', async (req, res) => {
   try {
@@ -208,17 +353,23 @@ app.get('/api/usage/claude', async (req, res) => {
       return res.json({ success: false, error: 'アクセストークンが見つかりません' });
     }
     
-    // トークンの有効期限チェック
-    if (oauth.expiresAt && Date.now() > oauth.expiresAt) {
-      return res.json({ success: false, error: 'トークンの有効期限が切れています' });
+    // トークンを検証し、必要に応じてリフレッシュ
+    const tokenResult = await ensureValidToken(oauth);
+    if (!tokenResult.valid) {
+      return res.json({
+        success: false,
+        error: tokenResult.error,
+        requireReauth: tokenResult.requireReauth || false
+      });
     }
-    
+    const accessToken = tokenResult.accessToken;
+
     const options = {
       hostname: 'api.anthropic.com',
       path: '/api/oauth/usage',
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${oauth.accessToken}`,
+        'Authorization': `Bearer ${accessToken}`,
         'anthropic-beta': 'oauth-2025-04-20'
       }
     };

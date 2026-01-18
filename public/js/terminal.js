@@ -855,7 +855,11 @@
         const data = await response.json();
 
         if (!data.success) {
-          container.innerHTML = `<div class="usage-error">${escapeHtml(data.error)}</div>`;
+          let errorHtml = `<div class="usage-error">${escapeHtml(data.error)}</div>`;
+          if (data.requireReauth) {
+            errorHtml += `<div class="usage-reauth-hint">ターミナルで <code>claude</code> を実行して再認証してください</div>`;
+          }
+          container.innerHTML = errorHtml;
           return;
         }
 
