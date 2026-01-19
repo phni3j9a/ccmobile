@@ -3,7 +3,9 @@ const http = require('http');
 const { Server } = require('socket.io');
 const pty = require('node-pty');
 const path = require('path');
-const { execSync, spawn } = require('child_process');
+const { execFileSync, spawn } = require('child_process');
+const helmet = require('helmet');
+const config = require('./config');
 
 const app = express();
 const server = http.createServer(app);
@@ -12,9 +14,62 @@ const io = new Server(server, {
   pingInterval: 25000
 });
 
-const PORT = 3000;
-const HOST = '0.0.0.0';
-const SESSION_PREFIX = 'ccw_'; // claude-code-web prefix
+// ===========================================
+// セキュリティヘッダー
+// ===========================================
+app.use(helmet({
+  contentSecurityPolicy: {
+    useDefaults: false,  // デフォルト設定を無効化（upgrade-insecure-requestsを防ぐ）
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "https://cdn.jsdelivr.net"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
+      fontSrc: ["'self'", "https://cdn.jsdelivr.net"],
+      connectSrc: ["'self'", "wss:", "ws:", "https://cdn.jsdelivr.net"],
+      imgSrc: ["'self'", "data:", "blob:"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"],
+      frameAncestors: ["'self'"],
+      objectSrc: ["'none'"],
+      scriptSrcAttr: ["'none'"]
+    }
+  },
+  crossOriginEmbedderPolicy: false
+}));
+
+// ===========================================
+// 入力検証関数
+// ===========================================
+
+/**
+ * セッション名を検証する
+ * 英数字、ハイフン、アンダースコア、ドットのみ許可（1-50文字）
+ * @param {string} name - 検証するセッション名
+ * @returns {string} 検証済みのセッション名
+ * @throws {Error} 無効なセッション名の場合
+ */
+function validateSessionName(name) {
+  if (typeof name !== 'string') {
+    throw new Error('セッション名は文字列である必要があります');
+  }
+  if (!/^[a-zA-Z0-9_\-\.]{1,50}$/.test(name)) {
+    throw new Error('無効なセッション名です。英数字、ハイフン、アンダースコア、ドットのみ使用可能（1-50文字）');
+  }
+  return name;
+}
+
+/**
+ * プレフィックス付きのフルセッション名を取得
+ * @param {string} sessionName - セッション名
+ * @returns {string} プレフィックス付きのセッション名
+ */
+function getFullSessionName(sessionName) {
+  const name = sessionName.startsWith(config.SESSION_PREFIX)
+    ? sessionName.replace(config.SESSION_PREFIX, '')
+    : sessionName;
+  validateSessionName(name);
+  return config.SESSION_PREFIX + name;
+}
 
 // 静的ファイル配信
 app.use(express.static(path.join(__dirname, 'public')));
@@ -27,18 +82,18 @@ app.use(express.json());
 // tmuxセッション一覧取得
 function listTmuxSessions() {
   try {
-    const output = execSync(
-      `tmux list-sessions -F "#{session_name}|#{session_created}|#{pane_current_path}" 2>/dev/null`,
-      { encoding: 'utf-8' }
-    );
+    const output = execFileSync('tmux', [
+      'list-sessions',
+      '-F', '#{session_name}|#{session_created}|#{pane_current_path}'
+    ], { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
 
     const sessions = output.trim().split('\n')
-      .filter(line => line.startsWith(SESSION_PREFIX))
+      .filter(line => line.startsWith(config.SESSION_PREFIX))
       .map(line => {
         const [name, created, cwd] = line.split('|');
         return {
           name,
-          displayName: name.replace(SESSION_PREFIX, ''),
+          displayName: name.replace(config.SESSION_PREFIX, ''),
           created: parseInt(created) * 1000,
           cwd: cwd || process.env.HOME
         };
@@ -47,24 +102,34 @@ function listTmuxSessions() {
     return sessions;
   } catch (e) {
     // tmuxが起動していないか、セッションがない場合
+    if (config.LOG_LEVEL === 'debug') {
+      console.log('tmuxセッション一覧取得: セッションなしまたはエラー');
+    }
     return [];
   }
 }
 
 // tmuxセッション作成
 function createTmuxSession(sessionName) {
-  const fullName = sessionName.startsWith(SESSION_PREFIX) ? sessionName : SESSION_PREFIX + sessionName;
   try {
-    execSync(`tmux new-session -d -s "${fullName}" -c "${process.env.HOME}"`, { encoding: 'utf-8' });
+    const fullName = getFullSessionName(sessionName);
+
+    execFileSync('tmux', [
+      'new-session', '-d', '-s', fullName, '-c', process.env.HOME
+    ], { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
 
     // tmux設定を適用（マウス操作有効化、スクロールバッファ増加）
     try {
-      execSync(`tmux set-option -t "${fullName}" mouse on`, { encoding: 'utf-8' });
-      execSync(`tmux set-option -t "${fullName}" history-limit 10000`, { encoding: 'utf-8' });
+      execFileSync('tmux', ['set-option', '-t', fullName, 'mouse', 'on'],
+        { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
+      execFileSync('tmux', ['set-option', '-t', fullName, 'history-limit', '10000'],
+        { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
       // Escキーの遅延を減らす（vimなどでの操作性向上）
-      execSync(`tmux set-option -t "${fullName}" escape-time 10`, { encoding: 'utf-8' });
+      execFileSync('tmux', ['set-option', '-t', fullName, 'escape-time', '10'],
+        { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
       // viモードに設定（Ctrl+u/dで半ページスクロール可能にする）
-      execSync(`tmux set-window-option -t "${fullName}" mode-keys vi`, { encoding: 'utf-8' });
+      execFileSync('tmux', ['set-window-option', '-t', fullName, 'mode-keys', 'vi'],
+        { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
     } catch (configErr) {
       console.error('tmux設定エラー（続行）:', configErr.message);
     }
@@ -79,20 +144,28 @@ function createTmuxSession(sessionName) {
 
 // tmuxセッションの設定を適用
 function applyTmuxSettings(sessionName) {
-  const fullName = sessionName.startsWith(SESSION_PREFIX) ? sessionName : SESSION_PREFIX + sessionName;
   try {
-    execSync(`tmux set-option -t "${fullName}" mouse on 2>/dev/null`, { encoding: 'utf-8' });
-    execSync(`tmux set-option -t "${fullName}" history-limit 10000 2>/dev/null`, { encoding: 'utf-8' });
-    execSync(`tmux set-option -t "${fullName}" escape-time 10 2>/dev/null`, { encoding: 'utf-8' });
-    execSync(`tmux set-window-option -t "${fullName}" mode-keys vi 2>/dev/null`, { encoding: 'utf-8' });
+    const fullName = getFullSessionName(sessionName);
+
+    execFileSync('tmux', ['set-option', '-t', fullName, 'mouse', 'on'],
+      { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
+    execFileSync('tmux', ['set-option', '-t', fullName, 'history-limit', '10000'],
+      { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
+    execFileSync('tmux', ['set-option', '-t', fullName, 'escape-time', '10'],
+      { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
+    execFileSync('tmux', ['set-window-option', '-t', fullName, 'mode-keys', 'vi'],
+      { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
   } catch (e) {
     // 設定エラーは無視（既に設定済みの場合など）
+    if (config.LOG_LEVEL === 'debug') {
+      console.log('tmux設定適用スキップ:', e.message);
+    }
   }
 }
 
 // tmuxセッションにアタッチ（PTY経由）
 function attachTmuxSession(sessionName) {
-  const fullName = sessionName.startsWith(SESSION_PREFIX) ? sessionName : SESSION_PREFIX + sessionName;
+  const fullName = getFullSessionName(sessionName);
 
   // アタッチ前に設定を適用（既存セッション用）
   applyTmuxSettings(fullName);
@@ -116,9 +189,11 @@ function attachTmuxSession(sessionName) {
 
 // tmuxセッション削除
 function killTmuxSession(sessionName) {
-  const fullName = sessionName.startsWith(SESSION_PREFIX) ? sessionName : SESSION_PREFIX + sessionName;
   try {
-    execSync(`tmux kill-session -t "${fullName}"`, { encoding: 'utf-8' });
+    const fullName = getFullSessionName(sessionName);
+
+    execFileSync('tmux', ['kill-session', '-t', fullName],
+      { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
     console.log('tmuxセッション削除:', fullName);
     return { success: true };
   } catch (e) {
@@ -129,9 +204,11 @@ function killTmuxSession(sessionName) {
 
 // tmuxセッションが存在するか確認
 function tmuxSessionExists(sessionName) {
-  const fullName = sessionName.startsWith(SESSION_PREFIX) ? sessionName : SESSION_PREFIX + sessionName;
   try {
-    execSync(`tmux has-session -t "${fullName}" 2>/dev/null`, { encoding: 'utf-8' });
+    const fullName = getFullSessionName(sessionName);
+
+    execFileSync('tmux', ['has-session', '-t', fullName],
+      { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
     return true;
   } catch (e) {
     return false;
@@ -170,21 +247,24 @@ app.delete('/api/sessions/:name', (req, res) => {
 app.put('/api/sessions/:name/rename', (req, res) => {
   const { name } = req.params;
   const { newName } = req.body;
-  
+
   if (!newName || newName.trim() === '') {
     return res.status(400).json({ success: false, error: '新しい名前を指定してください' });
   }
-  
-  const oldFullName = name.startsWith(SESSION_PREFIX) ? name : SESSION_PREFIX + name;
-  const newFullName = SESSION_PREFIX + newName.trim();
-  
+
   try {
-    execSync(`tmux rename-session -t "${oldFullName}" "${newFullName}"`, { encoding: 'utf-8' });
+    // 旧名と新名の両方を検証
+    const oldFullName = getFullSessionName(name);
+    validateSessionName(newName.trim());
+    const newFullName = config.SESSION_PREFIX + newName.trim();
+
+    execFileSync('tmux', ['rename-session', '-t', oldFullName, newFullName],
+      { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
     console.log('tmuxセッション名変更:', oldFullName, '->', newFullName);
     res.json({ success: true, name: newFullName, displayName: newName.trim() });
   } catch (e) {
     console.error('tmuxセッション名変更エラー:', e.message);
-    res.status(500).json({ success: false, error: e.message });
+    res.status(400).json({ success: false, error: e.message });
   }
 });
 
@@ -272,7 +352,11 @@ function updateCredentials(newTokenData) {
       credentials.claudeAiOauth.expiresAt = Date.now() + (newTokenData.expiresIn * 1000);
     }
 
-    fs.writeFileSync(credentialsPath, JSON.stringify(credentials, null, 2), 'utf-8');
+    // セキュリティ: ファイル権限を600 (owner read/write only) に設定
+    fs.writeFileSync(credentialsPath, JSON.stringify(credentials, null, 2), {
+      encoding: 'utf-8',
+      mode: 0o600
+    });
     console.log('credentials.json更新完了');
     return true;
   } catch (e) {
@@ -434,35 +518,40 @@ io.on('connection', (socket) => {
       sessionName = generateSessionName();
     }
 
-    const fullName = sessionName.startsWith(SESSION_PREFIX) ? sessionName : SESSION_PREFIX + sessionName;
+    try {
+      const fullName = getFullSessionName(sessionName);
 
-    // セッションが存在しなければ作成
-    if (!tmuxSessionExists(fullName)) {
-      const result = createTmuxSession(fullName);
-      if (!result.success) {
-        socket.emit('error', { message: 'セッション作成に失敗しました', error: result.error });
-        return;
+      // セッションが存在しなければ作成
+      if (!tmuxSessionExists(fullName)) {
+        const result = createTmuxSession(fullName);
+        if (!result.success) {
+          socket.emit('error', { message: 'セッション作成に失敗しました', error: result.error });
+          return;
+        }
       }
+
+      // tmuxセッションにアタッチ
+      ptyProcess = attachTmuxSession(fullName);
+      currentSessionName = fullName;
+
+      // PTYからの出力をクライアントに送信
+      ptyProcess.onData((data) => {
+        socket.emit('output', data);
+      });
+
+      // PTYプロセス終了時（デタッチ時も発火）
+      ptyProcess.onExit(({ exitCode, signal }) => {
+        console.log('PTYプロセス終了, exitCode:', exitCode, 'signal:', signal, 'session:', currentSessionName);
+        socket.emit('detached', { exitCode, signal, sessionName: currentSessionName });
+        ptyProcess = null;
+      });
+
+      // 接続完了を通知
+      socket.emit('attached', { sessionName: fullName, displayName: fullName.replace(config.SESSION_PREFIX, '') });
+    } catch (e) {
+      console.error('セッション接続エラー:', e.message);
+      socket.emit('error', { message: 'セッション名が無効です', error: e.message });
     }
-
-    // tmuxセッションにアタッチ
-    ptyProcess = attachTmuxSession(fullName);
-    currentSessionName = fullName;
-
-    // PTYからの出力をクライアントに送信
-    ptyProcess.onData((data) => {
-      socket.emit('output', data);
-    });
-
-    // PTYプロセス終了時（デタッチ時も発火）
-    ptyProcess.onExit(({ exitCode, signal }) => {
-      console.log('PTYプロセス終了, exitCode:', exitCode, 'signal:', signal, 'session:', currentSessionName);
-      socket.emit('detached', { exitCode, signal, sessionName: currentSessionName });
-      ptyProcess = null;
-    });
-
-    // 接続完了を通知
-    socket.emit('attached', { sessionName: fullName, displayName: fullName.replace(SESSION_PREFIX, '') });
   });
 
   // クライアントからの入力をPTYに送信
@@ -504,7 +593,48 @@ io.on('connection', (socket) => {
   });
 });
 
-server.listen(PORT, HOST, () => {
-  console.log(`サーバー起動: http://${HOST}:${PORT}`);
-  console.log('LAN内の他のデバイスからアクセス可能');
+// ===========================================
+// ヘルスチェックエンドポイント
+// ===========================================
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
 });
+
+// ===========================================
+// サーバー起動とグレースフルシャットダウン
+// ===========================================
+server.listen(config.PORT, config.HOST, () => {
+  console.log(`サーバー起動: http://${config.HOST}:${config.PORT}`);
+  console.log('LAN内の他のデバイスからアクセス可能');
+  if (config.LOG_LEVEL === 'debug') {
+    console.log('デバッグモード有効');
+  }
+});
+
+// グレースフルシャットダウン
+function gracefulShutdown(signal) {
+  console.log(`\n${signal}受信 - グレースフルシャットダウン開始...`);
+
+  // 新しい接続を受け付けない
+  server.close(() => {
+    console.log('HTTPサーバー停止完了');
+  });
+
+  // 既存のSocket.io接続を閉じる
+  io.close(() => {
+    console.log('Socket.io接続停止完了');
+  });
+
+  // 3秒後に強制終了
+  setTimeout(() => {
+    console.log('シャットダウン完了');
+    process.exit(0);
+  }, 3000);
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
