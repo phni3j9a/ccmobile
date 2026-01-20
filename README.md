@@ -1,15 +1,18 @@
-# Claude Code Web Terminal
+# Claude Code Web Terminal for Mobile
 
-Raspberry Pi 5 上で動作する **Web ベースのターミナルアプリケーション**です。  
+Raspberry Pi 5 上で動作する **Web ベースのターミナルアプリケーション**です。
 LAN 内の他のデバイス（PC、スマートフォン、タブレット）からブラウザ経由でターミナル操作ができます。
 
 ## 特徴
 
-- 🖥️ **ブラウザからターミナルアクセス** - xterm.js による本格的なターミナル体験
-- 📱 **モバイル対応** - タッチ操作に最適化された特殊キーツールバー
-- 🔄 **セッション永続化** - tmux によりブラウザを閉じてもセッション維持
-- 📲 **PWA 対応** - ホーム画面に追加してアプリのように使用可能
-- 🔌 **自動再接続** - 接続断時に自動的に復旧
+- **ブラウザからターミナルアクセス** - xterm.js による本格的なターミナル体験
+- **モバイル対応** - タッチ操作に最適化された特殊キーツールバー
+- **セッション永続化** - tmux によりブラウザを閉じてもセッション維持
+- **PWA 対応** - ホーム画面に追加してアプリのように使用可能
+- **自動再接続** - 接続断時に自動的に復旧
+- **Claude Code 使用量表示** - OAuth トークン自動リフレッシュ対応
+- **ダーク/ライトテーマ** - 好みに合わせてテーマを切り替え
+- **セキュリティ強化** - Helmet によるセキュリティヘッダー、入力検証
 
 ## アーキテクチャ
 
@@ -51,7 +54,22 @@ LAN 内の他のデバイス（PC、スマートフォン、タブレット）�
 | macOS | Homebrew で tmux をインストールすれば動作 |
 | Windows (WSL2) | WSL2 上で動作 |
 
-## インストール
+## クイックスタート（自動インストール）
+
+Raspberry Pi / Linux 環境では、インストールスクリプトを使用できます：
+
+```bash
+git clone https://github.com/rpi-and-fish/claude-code-web.git
+cd claude-code-web
+./scripts/install.sh
+```
+
+このスクリプトは以下を自動で行います：
+- 依存パッケージのインストール（Node.js, tmux, build-essential）
+- npm パッケージのインストール
+- systemd サービスの登録（オプション）
+
+## 手動インストール
 
 ### Raspberry Pi / Linux の場合
 
@@ -81,7 +99,7 @@ sudo apt install -y build-essential python3
 #### 4. アプリのセットアップ
 
 ```bash
-git clone https://github.com/your-username/claude-code-web.git
+git clone https://github.com/rpi-and-fish/claude-code-web.git
 cd claude-code-web
 npm install
 ```
@@ -105,7 +123,7 @@ brew install node tmux
 #### 3. アプリのセットアップ
 
 ```bash
-git clone https://github.com/your-username/claude-code-web.git
+git clone https://github.com/rpi-and-fish/claude-code-web.git
 cd claude-code-web
 npm install
 ```
@@ -140,7 +158,7 @@ sudo apt install -y tmux build-essential python3
 #### 3. アプリのセットアップ
 
 ```bash
-git clone https://github.com/your-username/claude-code-web.git
+git clone https://github.com/rpi-and-fish/claude-code-web.git
 cd claude-code-web
 npm install
 ```
@@ -181,6 +199,26 @@ wsl --shutdown
 
 ---
 
+## 設定
+
+### 環境変数
+
+`.env` ファイルを作成するか、環境変数で設定を上書きできます。
+
+```bash
+# .env.example をコピーして編集
+cp .env.example .env
+```
+
+| 変数名 | デフォルト値 | 説明 |
+|--------|--------------|------|
+| `PORT` | `3000` | サーバーのポート番号 |
+| `HOST` | `0.0.0.0` | バインドするホスト |
+| `SESSION_PREFIX` | `ccw_` | tmux セッション名のプレフィックス |
+| `LOG_LEVEL` | `info` | ログレベル（debug, info, warn, error） |
+
+---
+
 ## 使い方
 
 ### サーバー起動
@@ -208,6 +246,15 @@ http://<Raspberry Pi の IP アドレス>:3000
 - セッション名は `ccw_` プレフィックス付きで自動生成
 - 複数セッションの作成・切り替え・削除が可能
 - ブラウザを閉じてもセッションは維持される
+- 設定パネルから現在のセッションを切断可能
+
+### Claude Code 使用量表示
+
+設定パネルで Claude Code の使用状況を確認できます。
+
+- `~/.claude/.credentials.json` から認証情報を読み取り
+- OAuth アクセストークンの自動リフレッシュ対応
+- Pro/Max プランの使用量制限を表示
 
 ### モバイル向け UI
 
@@ -216,12 +263,11 @@ http://<Raspberry Pi の IP アドレス>:3000
 | 特殊キーツールバー | Esc, Tab, Ctrl+C/D/L/Z, 矢印キー, PgUp/PgDn |
 | スクロールモード | tmux コピーモードで履歴をスクロール |
 | クリップボード操作 | コピー/ペーストボタン |
-| クイックアクション | `claude`, `clear`, `exit` ボタン |
 
 ### 設定
 
+- **テーマ**: ダーク/ライトテーマを切り替え
 - **フォントサイズ**: 10px〜24px で調整可能
-- **カスタムコマンド**: よく使うコマンドをボタンとして追加
 
 設定は LocalStorage に保存され、次回アクセス時に復元されます。
 
@@ -230,18 +276,28 @@ http://<Raspberry Pi の IP アドレス>:3000
 ```
 claude-code-web/
 ├── server.js           # Express + Socket.io サーバー
+├── config.js           # 設定管理（環境変数対応）
 ├── package.json        # 依存関係定義
+├── .env.example        # 環境変数テンプレート
 ├── public/
 │   ├── index.html      # フロントエンド HTML
 │   ├── js/
 │   │   └── terminal.js # ターミナル制御ロジック
 │   ├── css/
-│   │   └── style.css   # レスポンシブ CSS
+│   │   └── style.css   # レスポンシブ CSS（テーマ対応）
 │   ├── icons/
 │   │   └── icon.svg    # アプリアイコン
 │   ├── manifest.json   # PWA マニフェスト
 │   └── sw.js           # Service Worker
-└── README.md
+├── scripts/
+│   ├── install.sh      # インストールスクリプト
+│   ├── uninstall.sh    # アンインストールスクリプト
+│   └── claude-code-web.service  # systemd サービスファイル
+├── SECURITY.md         # セキュリティガイドライン
+├── CHANGELOG.md        # 変更履歴
+├── LICENSE             # MIT ライセンス
+├── EULA.md             # エンドユーザーライセンス契約
+└── THIRD_PARTY.md      # サードパーティライセンス
 ```
 
 ## 技術スタック
@@ -255,36 +311,24 @@ claude-code-web/
   - [Express](https://expressjs.com/) - Web サーバー
   - [Socket.io](https://socket.io/) - リアルタイム通信
   - [node-pty](https://github.com/microsoft/node-pty) - 擬似ターミナル
+  - [Helmet](https://helmetjs.github.io/) - セキュリティヘッダー
   - [tmux](https://github.com/tmux/tmux) - セッション管理
 
 ## 自動起動の設定（systemd）
 
-Raspberry Pi の再起動後も自動でサーバーを起動させる設定です。
+インストールスクリプトを使用した場合、自動的に設定されます。
+手動で設定する場合は以下の手順を参照してください。
 
-### 1. サービスファイルの作成
+### 1. サービスファイルのコピー
+
+```bash
+sudo cp scripts/claude-code-web.service /etc/systemd/system/
+```
+
+サービスファイルを環境に合わせて編集（ユーザー名とパスを変更）：
 
 ```bash
 sudo nano /etc/systemd/system/claude-code-web.service
-```
-
-以下の内容を記述（ユーザー名とパスは環境に合わせて変更）：
-
-```ini
-[Unit]
-Description=Claude Code Web Terminal
-After=network.target
-
-[Service]
-Type=simple
-User=pi
-WorkingDirectory=/home/pi/claude-code-web
-ExecStart=/usr/bin/node server.js
-Restart=on-failure
-RestartSec=10
-Environment=NODE_ENV=production
-
-[Install]
-WantedBy=multi-user.target
 ```
 
 ### 2. サービスの有効化と起動
@@ -310,9 +354,21 @@ sudo systemctl status claude-code-web
 sudo journalctl -u claude-code-web -f
 ```
 
+## API エンドポイント
+
+| メソッド | パス | 説明 |
+|----------|------|------|
+| GET | `/api/sessions` | セッション一覧取得 |
+| DELETE | `/api/sessions/:name` | セッション削除 |
+| PUT | `/api/sessions/:name/rename` | セッション名変更 |
+| GET | `/api/usage/claude` | Claude Code 使用量取得 |
+| GET | `/health` | ヘルスチェック |
+
 ## セキュリティについて
 
-> **⚠️ 重要**: このアプリケーションは **信頼できる LAN 内** または **VPN（Tailscale 等）経由** での使用を前提としています。
+> **重要**: このアプリケーションは **信頼できる LAN 内** または **VPN（Tailscale 等）経由** での使用を前提としています。
+
+詳細なセキュリティガイドラインは [SECURITY.md](./SECURITY.md) を参照してください。
 
 ### 設計上の前提
 
@@ -324,17 +380,15 @@ sudo journalctl -u claude-code-web -f
 
 | 環境 | 安全性 | 説明 |
 |------|--------|------|
-| 自宅 LAN 内 | ✅ 安全 | 信頼できるネットワーク内での使用 |
-| Tailscale / WireGuard 経由 | ✅ 安全 | VPN で暗号化されるため外出先からも安全 |
-| インターネットに直接公開 | ❌ 危険 | **絶対に行わないでください** |
+| 自宅 LAN 内 | 安全 | 信頼できるネットワーク内での使用 |
+| Tailscale / WireGuard 経由 | 安全 | VPN で暗号化されるため外出先からも安全 |
+| インターネットに直接公開 | **危険** | **絶対に行わないでください** |
 
 ### やってはいけないこと
 
 - ルーターのポートフォワーディングで外部公開
 - クラウドサーバーでの公開運用（VPN なし）
 - 公共 Wi-Fi での LAN 内アクセス
-
-Tailscale を使用すれば、HTTP のままでも WireGuard による暗号化トンネル内を通信するため、安全に外出先からアクセスできます。
 
 ## 外出先からのアクセス（Tailscale）
 
@@ -408,6 +462,22 @@ tmux kill-session -t セッション名
 
 アプリの UI からもセッション削除が可能です。
 
+### Claude Code 使用量が取得できない
+
+- `~/.claude/.credentials.json` ファイルが存在するか確認
+- Claude Code で一度ログインが必要です
+- トークンの有効期限切れの場合は Claude Code で再認証してください
+
+## アンインストール
+
+```bash
+./scripts/uninstall.sh
+```
+
+systemd サービスの停止・削除、設定ファイルの削除を行います。
+
 ## ライセンス
 
-MIT
+MIT - 詳細は [LICENSE](./LICENSE) を参照してください。
+
+サードパーティライセンスについては [THIRD_PARTY.md](./THIRD_PARTY.md) を参照してください。

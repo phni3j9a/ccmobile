@@ -1,5 +1,5 @@
 {
-  "name": "Claude Code Web Terminal",
+  "name": "Claude Code Web Terminal for Mobile",
   "short_name": "CC Terminal",
   "description": "Raspberry Pi上で動作するWebベースのターミナル。tmuxによるセッション永続化、PWA対応。",
   "start_url": "/",

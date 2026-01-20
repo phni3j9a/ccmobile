@@ -1,7 +1,7 @@
 {
   "name": "claude-code-web",
   "version": "1.0.0",
-  "description": "Web-based terminal for Claude Code on Raspberry Pi 5",
+  "description": "Claude Code Web Terminal for Mobile - Web-based terminal for Raspberry Pi 5",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
