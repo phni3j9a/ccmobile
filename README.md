@@ -59,7 +59,7 @@ LAN 内の他のデバイス（PC、スマートフォン、タブレット）�
 Raspberry Pi / Linux 環境では、インストールスクリプトを使用できます：
 
 ```bash
-git clone https://github.com/rpi-and-fish/claude-code-web.git
+git clone https://github.com/phni3j9a/ccmobile.git
 cd claude-code-web
 ./scripts/install.sh
 ```
@@ -99,7 +99,7 @@ sudo apt install -y build-essential python3
 #### 4. アプリのセットアップ
 
 ```bash
-git clone https://github.com/rpi-and-fish/claude-code-web.git
+git clone https://github.com/phni3j9a/ccmobile.git
 cd claude-code-web
 npm install
 ```
@@ -123,7 +123,7 @@ brew install node tmux
 #### 3. アプリのセットアップ
 
 ```bash
-git clone https://github.com/rpi-and-fish/claude-code-web.git
+git clone https://github.com/phni3j9a/ccmobile.git
 cd claude-code-web
 npm install
 ```
@@ -158,7 +158,7 @@ sudo apt install -y tmux build-essential python3
 #### 3. アプリのセットアップ
 
 ```bash
-git clone https://github.com/rpi-and-fish/claude-code-web.git
+git clone https://github.com/phni3j9a/ccmobile.git
 cd claude-code-web
 npm install
 ```

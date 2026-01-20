@@ -111,9 +111,9 @@ sudo chown -R ccw:ccw /opt/claude-code-web
 
 ## 脆弱性の報告
 
-セキュリティ上の問題を発見した場合は、購入元のプラットフォームを通じてご連絡ください。
+セキュリティ上の問題を発見した場合は、GitHub Issues でご報告ください。
 
-**公開の場で脆弱性を報告しないでください。**
+https://github.com/phni3j9a/ccmobile/issues
 
 ---
 
