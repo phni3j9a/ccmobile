@@ -93,9 +93,35 @@
     let currentSessionName = null;
     let isAttached = false;
 
+    // トースト通知コンテナ
+    const toastContainer = document.getElementById('toast-container');
+
     // デバッグ用
     function log(msg) {
       console.log('[terminal.js]', msg);
+    }
+
+    /**
+     * トースト通知を表示
+     * @param {string} message - 表示するメッセージ
+     * @param {'success' | 'error' | 'warning' | 'info'} type - 通知タイプ
+     * @param {number} duration - 表示時間（ミリ秒）
+     */
+    function showToast(message, type = 'info', duration = 3000) {
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      toast.textContent = message;
+      toast.setAttribute('role', 'alert');
+
+      toastContainer.appendChild(toast);
+
+      // 指定時間後に削除
+      setTimeout(() => {
+        toast.classList.add('toast-out');
+        toast.addEventListener('animationend', () => {
+          toast.remove();
+        });
+      }, duration);
     }
 
     log('初期化開始');
@@ -187,10 +213,14 @@
     async function fetchSessions() {
       try {
         const response = await fetch('/api/sessions');
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
         const sessions = await response.json();
         return sessions;
       } catch (e) {
         log('セッション取得エラー: ' + e.message);
+        showToast('セッション一覧の取得に失敗しました', 'error');
         return [];
       }
     }
@@ -276,25 +306,35 @@
           method: 'DELETE'
         });
 
-        if (response.ok) {
-          log('セッション削除: ' + sessionName);
-          // 一覧を更新
-          const sessions = await fetchSessions();
-          renderSessionList(sessions);
-        } else {
-          log('セッション削除失敗');
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}));
+          throw new Error(data.error || `HTTP ${response.status}`);
         }
+
+        log('セッション削除: ' + sessionName);
+        showToast('セッションを削除しました', 'success');
+        // 一覧を更新
+        const sessions = await fetchSessions();
+        renderSessionList(sessions);
       } catch (e) {
         log('セッション削除エラー: ' + e.message);
+        showToast('セッションの削除に失敗しました: ' + e.message, 'error');
       }
     }
 
     // セッション名を変更
     async function renameSession(sessionName) {
       const currentName = sessionName.replace(/^ccw_/, '');
-      const newName = prompt('新しいセッション名を入力:', currentName);
-      
+      const newName = prompt('新しいセッション名を入力:\n（英数字、ハイフン、アンダースコア、ドットのみ）', currentName);
+
       if (!newName || newName.trim() === '' || newName.trim() === currentName) {
+        return;
+      }
+
+      // クライアント側でも簡易バリデーション
+      const trimmedName = newName.trim();
+      if (!/^[a-zA-Z0-9_\-\.]{1,50}$/.test(trimmedName)) {
+        showToast('無効なセッション名です。英数字、ハイフン、アンダースコア、ドットのみ使用可能（1-50文字）', 'error', 5000);
         return;
       }
 
@@ -302,20 +342,22 @@
         const response = await fetch(`/api/sessions/${encodeURIComponent(sessionName)}/rename`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ newName: newName.trim() })
+          body: JSON.stringify({ newName: trimmedName })
         });
 
-        if (response.ok) {
-          log('セッション名変更: ' + sessionName + ' -> ' + newName);
-          const sessions = await fetchSessions();
-          renderSessionList(sessions);
-        } else {
-          const data = await response.json();
-          alert('名前の変更に失敗しました: ' + (data.error || '不明なエラー'));
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(data.error || `HTTP ${response.status}`);
         }
+
+        log('セッション名変更: ' + sessionName + ' -> ' + trimmedName);
+        showToast('セッション名を変更しました', 'success');
+        const sessions = await fetchSessions();
+        renderSessionList(sessions);
       } catch (e) {
         log('セッション名変更エラー: ' + e.message);
-        alert('名前の変更に失敗しました');
+        showToast('名前の変更に失敗しました: ' + e.message, 'error');
       }
     }
 
@@ -755,6 +797,7 @@
           scrollModeActive = true;
           scrollModeBtn.classList.add('active');
           scrollModeBtn.textContent = '📜✓';
+          scrollModeBtn.setAttribute('aria-pressed', 'true');
           log('スクロールモード ON');
         } else {
           // コピーモードを抜ける
@@ -762,6 +805,7 @@
           scrollModeActive = false;
           scrollModeBtn.classList.remove('active');
           scrollModeBtn.textContent = '📜';
+          scrollModeBtn.setAttribute('aria-pressed', 'false');
           log('スクロールモード OFF');
         }
       }
@@ -876,10 +920,18 @@
 
       try {
         const response = await fetch('/api/usage/claude');
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
         const data = await response.json();
 
         if (!data.success) {
-          let errorHtml = `<div class="usage-error">${escapeHtml(data.error)}</div>`;
+          // errorがオブジェクトの場合は適切にメッセージを抽出
+          let errorMessage = data.error;
+          if (typeof data.error === 'object' && data.error !== null) {
+            errorMessage = data.error.message || JSON.stringify(data.error);
+          }
+          let errorHtml = `<div class="usage-error">${escapeHtml(errorMessage)}</div>`;
           if (data.requireReauth) {
             errorHtml += `<div class="usage-reauth-hint">ターミナルで <code>claude</code> を実行して再認証してください</div>`;
           }

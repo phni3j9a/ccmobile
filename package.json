@@ -8,10 +8,28 @@
     "dev": "node server.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "socket.io": "^4.7.2",
-    "node-pty": "^1.0.0"
+    "express": "4.22.1",
+    "helmet": "8.0.0",
+    "socket.io": "4.8.1",
+    "node-pty": "1.0.0"
   },
-  "author": "",
-  "license": "MIT"
+  "optionalDependencies": {
+    "dotenv": "16.4.7"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": "rpi-and-fish",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rpi-and-fish/claude-code-web"
+  },
+  "keywords": [
+    "terminal",
+    "raspberry-pi",
+    "claude",
+    "tmux",
+    "pwa"
+  ]
 }

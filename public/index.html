@@ -28,25 +28,28 @@
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
+  <!-- トースト通知コンテナ -->
+  <div id="toast-container" role="alert" aria-live="polite"></div>
+
   <!-- オフラインバナー -->
-  <div id="offline-banner" class="hidden">
+  <div id="offline-banner" class="hidden" role="alert" aria-live="assertive">
     <span>オフライン - 接続が切断されました</span>
-    <button id="reconnect-btn">再接続</button>
+    <button id="reconnect-btn" aria-label="再接続する">再接続</button>
   </div>
 
   <!-- セッション管理パネル -->
-  <div id="session-manager" class="hidden">
+  <div id="session-manager" class="hidden" role="dialog" aria-labelledby="session-manager-title">
     <div class="session-manager-content">
-      <h2>セッション</h2>
-      <div id="session-list"></div>
-      <button id="new-session-btn" class="session-btn new-btn">＋ 新しいセッション</button>
+      <h2 id="session-manager-title">セッション</h2>
+      <div id="session-list" role="list" aria-label="セッション一覧"></div>
+      <button id="new-session-btn" class="session-btn new-btn" aria-label="新しいセッションを作成">＋ 新しいセッション</button>
     </div>
   </div>
 
   <!-- 設定ボタン -->
-  <div id="quick-actions">
-    <button class="quick-btn settings-btn" id="settings-toggle">⚙</button>
-  </div>
+  <nav id="quick-actions" aria-label="クイックアクション">
+    <button class="quick-btn settings-btn" id="settings-toggle" aria-label="設定を開く">⚙</button>
+  </nav>
 
   <!-- ターミナルコンテナ -->
   <div id="terminal-container">
@@ -54,74 +57,74 @@
   </div>
 
   <!-- 特殊キーツールバー -->
-  <div id="special-keys-toolbar">
-    <button class="key-btn scroll-btn" id="scroll-mode-btn" title="スクロールモード (Ctrl+b [)">📜</button>
-    <button class="key-btn" data-key="PageUp">PgUp</button>
-    <button class="key-btn" data-key="PageDown">PgDn</button>
-    <button class="key-btn" data-key="Escape">Esc</button>
-    <button class="key-btn" data-key="Tab">Tab</button>
-    <button class="key-btn" data-key="ShiftTab">⇧Tab</button>
-    <button class="key-btn" data-key="Enter">Enter</button>
+  <div id="special-keys-toolbar" role="toolbar" aria-label="特殊キー入力">
+    <button class="key-btn scroll-btn" id="scroll-mode-btn" title="スクロールモード (Ctrl+b [)" aria-label="スクロールモード切り替え" aria-pressed="false">📜</button>
+    <button class="key-btn" data-key="PageUp" aria-label="Page Up">PgUp</button>
+    <button class="key-btn" data-key="PageDown" aria-label="Page Down">PgDn</button>
+    <button class="key-btn" data-key="Escape" aria-label="Escape">Esc</button>
+    <button class="key-btn" data-key="Tab" aria-label="Tab">Tab</button>
+    <button class="key-btn" data-key="ShiftTab" aria-label="Shift+Tab">⇧Tab</button>
+    <button class="key-btn" data-key="Enter" aria-label="Enter">Enter</button>
 
-    <button class="key-btn" data-key="ArrowUp">↑</button>
-    <button class="key-btn" data-key="ArrowDown">↓</button>
-    <button class="key-btn" data-key="ArrowLeft">←</button>
-    <button class="key-btn" data-key="ArrowRight">→</button>
-    <button class="key-btn" data-ctrl="c">^C</button>
-    <button class="key-btn" data-ctrl="d">^D</button>
-    <button class="key-btn" data-ctrl="l">^L</button>
-    <button class="key-btn" data-ctrl="z">^Z</button>
-    <button class="key-btn paste-btn" id="paste-btn">📋</button>
+    <button class="key-btn" data-key="ArrowUp" aria-label="上矢印">↑</button>
+    <button class="key-btn" data-key="ArrowDown" aria-label="下矢印">↓</button>
+    <button class="key-btn" data-key="ArrowLeft" aria-label="左矢印">←</button>
+    <button class="key-btn" data-key="ArrowRight" aria-label="右矢印">→</button>
+    <button class="key-btn" data-ctrl="c" aria-label="Ctrl+C (中断)">^C</button>
+    <button class="key-btn" data-ctrl="d" aria-label="Ctrl+D (EOF)">^D</button>
+    <button class="key-btn" data-ctrl="l" aria-label="Ctrl+L (クリア)">^L</button>
+    <button class="key-btn" data-ctrl="z" aria-label="Ctrl+Z (サスペンド)">^Z</button>
+    <button class="key-btn paste-btn" id="paste-btn" aria-label="クリップボードからペースト">📋</button>
   </div>
 
   <!-- ステータスバー -->
-  <div id="status-bar">
-    <span id="connection-indicator"></span>
+  <footer id="status-bar" role="status" aria-live="polite">
+    <span id="connection-indicator" aria-hidden="true"></span>
     <span id="status-text">接続中...</span>
-  </div>
+  </footer>
 
   <!-- コピーボタン（フローティング） -->
-  <button id="copy-btn" class="hidden">コピー</button>
+  <button id="copy-btn" class="hidden" aria-label="選択したテキストをコピー">コピー</button>
 
   <!-- 設定パネル -->
-  <div id="settings-panel" class="hidden">
+  <aside id="settings-panel" class="hidden" role="dialog" aria-labelledby="settings-title" aria-modal="true">
     <div class="settings-header">
-      <span>設定</span>
-      <button id="settings-close">✕</button>
+      <span id="settings-title">設定</span>
+      <button id="settings-close" aria-label="設定を閉じる">✕</button>
     </div>
     <div class="settings-content">
       <div class="setting-item">
-        <label>テーマ</label>
-        <div class="theme-toggle">
-          <button class="theme-btn" id="theme-light" data-theme="light">☀️ ライト</button>
-          <button class="theme-btn active" id="theme-dark" data-theme="dark">🌙 ダーク</button>
+        <label id="theme-label">テーマ</label>
+        <div class="theme-toggle" role="group" aria-labelledby="theme-label">
+          <button class="theme-btn" id="theme-light" data-theme="light" aria-label="ライトテーマに切り替え">☀️ ライト</button>
+          <button class="theme-btn active" id="theme-dark" data-theme="dark" aria-label="ダークテーマに切り替え">🌙 ダーク</button>
         </div>
       </div>
       <div class="setting-item">
-        <label>フォントサイズ</label>
-        <div class="font-size-controls">
-          <button id="font-decrease">−</button>
-          <span id="font-size-display">14px</span>
-          <button id="font-increase">+</button>
+        <label id="fontsize-label">フォントサイズ</label>
+        <div class="font-size-controls" role="group" aria-labelledby="fontsize-label">
+          <button id="font-decrease" aria-label="フォントサイズを小さくする">−</button>
+          <span id="font-size-display" aria-live="polite">14px</span>
+          <button id="font-increase" aria-label="フォントサイズを大きくする">+</button>
         </div>
       </div>
       <div class="setting-item usage-section">
-        <label>Claude Code 使用状況</label>
-        <div id="claude-usage-container">
+        <label id="usage-label">Claude Code 使用状況</label>
+        <div id="claude-usage-container" aria-labelledby="usage-label">
           <div class="usage-loading">読み込み中...</div>
         </div>
-        <button id="refresh-usage-btn" class="refresh-btn">🔄 更新</button>
+        <button id="refresh-usage-btn" class="refresh-btn" aria-label="使用状況を更新">🔄 更新</button>
       </div>
       <!-- セッション操作 -->
       <div class="setting-item session-section">
-        <label>セッション</label>
-        <button id="detach-session-btn" class="session-control-btn">
+        <label id="session-label">セッション</label>
+        <button id="detach-session-btn" class="session-control-btn" aria-label="現在のセッションから切断してセッション一覧へ戻る">
           🔌 切断してセッション一覧へ
         </button>
       </div>
     </div>
-  </div>
-  <div id="settings-overlay" class="hidden"></div>
+  </aside>
+  <div id="settings-overlay" class="hidden" aria-hidden="true"></div>
 
   <script src="/js/terminal.js"></script>
 </body>

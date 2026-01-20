@@ -1,0 +1,37 @@
+[Unit]
+Description=Claude Code Web Terminal
+Documentation=https://github.com/rpi-and-fish/claude-code-web
+After=network.target
+
+[Service]
+Type=simple
+User=ccw
+Group=ccw
+WorkingDirectory=/opt/claude-code-web
+ExecStart=/usr/bin/node /opt/claude-code-web/server.js
+Restart=on-failure
+RestartSec=10
+
+# 環境変数
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=HOST=0.0.0.0
+
+# セキュリティ設定
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/tmp
+PrivateTmp=true
+
+# リソース制限
+LimitNOFILE=65535
+MemoryMax=512M
+
+# ログ設定
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=claude-code-web
+
+[Install]
+WantedBy=multi-user.target

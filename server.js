@@ -463,10 +463,31 @@ app.get('/api/usage/claude', async (req, res) => {
       apiRes.on('data', chunk => data += chunk);
       apiRes.on('end', () => {
         try {
-          const usage = JSON.parse(data);
-          res.json({ 
-            success: true, 
-            usage,
+          const parsed = JSON.parse(data);
+
+          // HTTPステータスコードチェック
+          if (apiRes.statusCode !== 200) {
+            const errorMsg = parsed.error?.message || parsed.message || `API error: ${apiRes.statusCode}`;
+            return res.json({
+              success: false,
+              error: errorMsg,
+              requireReauth: apiRes.statusCode === 401
+            });
+          }
+
+          // APIエラーレスポンスのチェック（type: "error"など）
+          if (parsed.type === 'error' || parsed.error) {
+            const errorMsg = parsed.error?.message || parsed.message || 'APIエラーが発生しました';
+            return res.json({
+              success: false,
+              error: errorMsg,
+              requireReauth: false
+            });
+          }
+
+          res.json({
+            success: true,
+            usage: parsed,
             subscriptionType: oauth.subscriptionType || 'unknown'
           });
         } catch (e) {
