@@ -1,6 +1,6 @@
 [Unit]
 Description=Claude Code Web Terminal
-Documentation=https://github.com/rpi-and-fish/claude-code-web
+Documentation=https://github.com/phni3j9a/ccmobile
 After=network.target
 
 [Service]
@@ -20,8 +20,8 @@ Environment=HOST=0.0.0.0
 # セキュリティ設定
 NoNewPrivileges=true
 ProtectSystem=strict
-ProtectHome=read-only
-ReadWritePaths=/tmp
+ProtectHome=true
+ReadWritePaths=/tmp %h/.claude
 PrivateTmp=true
 
 # リソース制限

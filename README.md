@@ -1,7 +1,46 @@
 # Claude Code Web Terminal for Mobile
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
+[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20WSL2-lightgrey)]()
+
 Raspberry Pi 5 上で動作する **Web ベースのターミナルアプリケーション**です。
 LAN 内の他のデバイス（PC、スマートフォン、タブレット）からブラウザ経由でターミナル操作ができます。
+
+---
+
+## Quick Start
+
+### ワンライナーインストール（推奨）
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/phni3j9a/ccmobile/main/scripts/install.sh | bash
+```
+
+依存関係も自動インストールする場合:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/phni3j9a/ccmobile/main/scripts/install.sh | bash -s -- --with-deps
+```
+
+### 要件チェックリスト
+
+インストール前に以下を確認してください:
+
+- [ ] **Node.js 18+** がインストールされている
+- [ ] **tmux** がインストールされている
+- [ ] **ビルドツール** (gcc, make) がインストールされている
+- [ ] **git** がインストールされている
+
+```bash
+# 要件の確認コマンド
+node -v      # v18.0.0 以上
+tmux -V      # tmux 2.0 以上
+gcc --version
+make --version
+```
+
+---
 
 ## 特徴
 
