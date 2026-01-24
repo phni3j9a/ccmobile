@@ -868,6 +868,7 @@
           if (navigator.clipboard && navigator.clipboard.writeText) {
             await navigator.clipboard.writeText(selection);
             log('コピー完了');
+            showToast('コピーしました', 'success', 1500);
           } else {
             prompt('コピーするテキスト:', selection);
           }
