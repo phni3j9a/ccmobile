@@ -334,6 +334,27 @@ html, body {
   height: 100%;
 }
 
+/* スクロールモードのビジュアルフィードバック */
+#terminal.scroll-mode {
+  border: 2px solid var(--accent-cyan);
+  position: relative;
+}
+
+#terminal.scroll-mode::after {
+  content: 'SCROLL';
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: var(--accent-cyan);
+  color: var(--bg-primary);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: bold;
+  opacity: 0.9;
+  z-index: 10;
+}
+
 /* 特殊キーツールバー */
 #special-keys-toolbar {
   display: none;
