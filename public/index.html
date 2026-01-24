@@ -87,6 +87,12 @@
   <footer id="status-bar" role="status" aria-live="polite">
     <span id="connection-indicator" aria-hidden="true"></span>
     <span id="status-text">接続中...</span>
+    <span id="usage-indicator" class="usage-indicator hidden" role="button" tabindex="0" aria-label="Claude Code使用量">
+      <span class="usage-item-inline"><span class="usage-label-inline">5h</span><span id="usage-5h" class="usage-value">--</span></span>
+      <span class="usage-sep">|</span>
+      <span class="usage-item-inline"><span class="usage-label-inline">7d</span><span id="usage-7d" class="usage-value">--</span></span>
+      <button id="usage-refresh" class="usage-refresh-btn" aria-label="使用量を更新">↻</button>
+    </span>
   </footer>
 
   <!-- コピーボタン（フローティング） -->

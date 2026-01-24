@@ -27,6 +27,7 @@
     const STORAGE_KEY_FONT_SIZE = 'terminal-font-size';
     const STORAGE_KEY_LAST_SESSION = 'terminal-last-session';
     const STORAGE_KEY_THEME = 'terminal-theme';
+    const USAGE_UPDATE_INTERVAL = 5 * 60 * 1000; // 5分間隔
 
     // テーマ定義
     const THEMES = {
@@ -89,7 +90,8 @@
     const addSessionTabBtn = document.getElementById('add-session-tab');
 
     // 状態
-
+    let usageUpdateTimer = null;
+    let lastUsageData = null;
     let scrollModeActive = false;
     let currentFontSize = parseInt(localStorage.getItem(STORAGE_KEY_FONT_SIZE)) || 14;
     let currentTheme = localStorage.getItem(STORAGE_KEY_THEME) || 'dark';
@@ -552,6 +554,9 @@
 
       // タブバーを更新
       updateSessionTabs();
+
+      // 使用量インジケーター更新開始
+      startUsageUpdates();
     });
 
     // セッション切り替え完了
@@ -567,6 +572,9 @@
 
       // タブバーを更新
       updateSessionTabs();
+
+      // 使用量インジケーター更新開始（既に動作中なら再初期化）
+      startUsageUpdates();
     });
 
     // tmuxセッションからデタッチ
@@ -575,6 +583,9 @@
       isAttached = false;
       currentSessionName = null;
       term.write('\r\n\x1b[33m[セッションから切断されました]\x1b[0m\r\n');
+
+      // 使用量インジケーター更新停止
+      stopUsageUpdates();
 
       // セッション一覧を取得して表示
       const sessions = await fetchSessions();
@@ -1097,6 +1108,123 @@
     const refreshUsageBtn = document.getElementById('refresh-usage-btn');
     if (refreshUsageBtn) {
       refreshUsageBtn.addEventListener('click', fetchClaudeUsage);
+    }
+
+    // ===========================================
+    // ステータスバー使用量インジケーター
+    // ===========================================
+
+    const usageIndicator = document.getElementById('usage-indicator');
+    const usage5hEl = document.getElementById('usage-5h');
+    const usage7dEl = document.getElementById('usage-7d');
+    const usageRefreshBtn = document.getElementById('usage-refresh');
+
+    // パーセントに応じたCSSクラスを返す
+    function getUsageClass(percent) {
+      if (percent >= 100) return 'usage-critical';
+      if (percent >= 80) return 'usage-warning';
+      return 'usage-normal';
+    }
+
+    // ステータスバーの使用量インジケーターを更新
+    async function updateUsageIndicator() {
+      if (usageRefreshBtn) {
+        usageRefreshBtn.classList.add('spinning');
+      }
+
+      try {
+        const response = await fetch('/api/usage/claude');
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const data = await response.json();
+
+        if (!data.success) {
+          // エラー時は非表示
+          if (usageIndicator) usageIndicator.classList.add('hidden');
+          return;
+        }
+
+        lastUsageData = data.usage;
+
+        // 5時間制限
+        if (data.usage.five_hour && usage5hEl) {
+          const percent = Math.min(100, Math.max(0, data.usage.five_hour.utilization));
+          usage5hEl.textContent = `${percent.toFixed(0)}%`;
+          usage5hEl.className = 'usage-value ' + getUsageClass(percent);
+        }
+
+        // 7日間制限
+        if (data.usage.seven_day && usage7dEl) {
+          const percent = Math.min(100, Math.max(0, data.usage.seven_day.utilization));
+          usage7dEl.textContent = `${percent.toFixed(0)}%`;
+          usage7dEl.className = 'usage-value ' + getUsageClass(percent);
+        }
+
+        // インジケーターを表示
+        if (usageIndicator) {
+          usageIndicator.classList.remove('hidden');
+        }
+
+        log('使用量インジケーター更新完了');
+      } catch (e) {
+        log('使用量インジケーター更新エラー: ' + e.message);
+        // エラー時は非表示
+        if (usageIndicator) usageIndicator.classList.add('hidden');
+      } finally {
+        if (usageRefreshBtn) {
+          usageRefreshBtn.classList.remove('spinning');
+        }
+      }
+    }
+
+    // 定期更新を開始
+    function startUsageUpdates() {
+      // まず即時更新
+      updateUsageIndicator();
+      // 5分間隔で更新
+      if (usageUpdateTimer) {
+        clearInterval(usageUpdateTimer);
+      }
+      usageUpdateTimer = setInterval(updateUsageIndicator, USAGE_UPDATE_INTERVAL);
+      log('使用量定期更新開始');
+    }
+
+    // 定期更新を停止
+    function stopUsageUpdates() {
+      if (usageUpdateTimer) {
+        clearInterval(usageUpdateTimer);
+        usageUpdateTimer = null;
+      }
+      if (usageIndicator) {
+        usageIndicator.classList.add('hidden');
+      }
+      log('使用量定期更新停止');
+    }
+
+    // インジケータークリック → 設定パネルを開く
+    if (usageIndicator) {
+      usageIndicator.addEventListener('click', (e) => {
+        // 更新ボタンクリックは除外
+        if (e.target === usageRefreshBtn || e.target.closest('.usage-refresh-btn')) {
+          return;
+        }
+        openSettings();
+      });
+      usageIndicator.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openSettings();
+        }
+      });
+    }
+
+    // 更新ボタンクリック → 即時更新
+    if (usageRefreshBtn) {
+      usageRefreshBtn.addEventListener('click', (e) => {
+        e.stopPropagation(); // インジケーターのクリックイベントを発火させない
+        updateUsageIndicator();
+      });
     }
 
     settingsToggle.addEventListener('click', openSettings);
