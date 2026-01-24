@@ -83,6 +83,11 @@
     const sessionList = document.getElementById('session-list');
     const newSessionBtn = document.getElementById('new-session-btn');
 
+    // セッションタブバーUI要素
+    const sessionTabBar = document.getElementById('session-tab-bar');
+    const sessionTabsContainer = document.getElementById('session-tabs');
+    const addSessionTabBtn = document.getElementById('add-session-tab');
+
     // 状態
 
     let scrollModeActive = false;
@@ -92,6 +97,7 @@
     let socket = null;
     let currentSessionName = null;
     let isAttached = false;
+    let sessionListCache = []; // セッション一覧のキャッシュ
 
     // トースト通知コンテナ
     const toastContainer = document.getElementById('toast-container');
@@ -262,6 +268,87 @@
         `;
         sessionList.appendChild(item);
       });
+    }
+
+    // ===========================================
+    // セッションタブバー機能
+    // ===========================================
+
+    // セッション一覧を取得してタブを更新
+    async function updateSessionTabs() {
+      try {
+        const sessions = await fetchSessions();
+        sessionListCache = sessions;
+        renderSessionTabs();
+      } catch (e) {
+        log('タブ更新エラー: ' + e.message);
+      }
+    }
+
+    // タブバーを描画
+    function renderSessionTabs() {
+      if (!sessionTabsContainer) return;
+
+      sessionTabsContainer.innerHTML = '';
+
+      sessionListCache.forEach(session => {
+        const tab = document.createElement('button');
+        tab.className = 'session-tab';
+        tab.setAttribute('role', 'tab');
+        tab.setAttribute('data-session', session.name);
+        tab.textContent = session.displayName;
+
+        // 現在のセッションをアクティブ表示
+        if (session.name === currentSessionName) {
+          tab.classList.add('active');
+          tab.setAttribute('aria-selected', 'true');
+        } else {
+          tab.setAttribute('aria-selected', 'false');
+        }
+
+        sessionTabsContainer.appendChild(tab);
+      });
+
+      // アクティブなタブをスクロール表示
+      const activeTab = sessionTabsContainer.querySelector('.session-tab.active');
+      if (activeTab) {
+        activeTab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
+    }
+
+    // セッション切り替え
+    function switchSession(sessionName) {
+      if (!sessionName || sessionName === currentSessionName) return;
+      if (!socket || !socket.connected) {
+        showToast('接続されていません', 'error');
+        return;
+      }
+
+      log('セッション切り替え: ' + sessionName);
+      setStatus('reconnecting', '切替中...');
+      socket.emit('switch', { sessionName });
+    }
+
+    // 前のセッションに切り替え
+    function switchToPreviousSession() {
+      if (sessionListCache.length < 2) return;
+
+      const currentIndex = sessionListCache.findIndex(s => s.name === currentSessionName);
+      if (currentIndex === -1) return;
+
+      const prevIndex = (currentIndex - 1 + sessionListCache.length) % sessionListCache.length;
+      switchSession(sessionListCache[prevIndex].name);
+    }
+
+    // 次のセッションに切り替え
+    function switchToNextSession() {
+      if (sessionListCache.length < 2) return;
+
+      const currentIndex = sessionListCache.findIndex(s => s.name === currentSessionName);
+      if (currentIndex === -1) return;
+
+      const nextIndex = (currentIndex + 1) % sessionListCache.length;
+      switchSession(sessionListCache[nextIndex].name);
     }
 
     // セッションマネージャを表示
@@ -462,6 +549,24 @@
       setStatus('connected', displayName);
       fit();
       term.focus();
+
+      // タブバーを更新
+      updateSessionTabs();
+    });
+
+    // セッション切り替え完了
+    socket.on('switched', ({ sessionName, displayName, oldSessionName }) => {
+      log('セッション切り替え完了: ' + displayName);
+      currentSessionName = sessionName;
+      isAttached = true;
+      localStorage.setItem(STORAGE_KEY_LAST_SESSION, sessionName);
+
+      setStatus('connected', displayName);
+      fit();
+      term.focus();
+
+      // タブバーを更新
+      updateSessionTabs();
     });
 
     // tmuxセッションからデタッチ
@@ -1097,6 +1202,81 @@
       // タップ判定: 移動距離10px以内、時間300ms以内
       if (deltaX < 10 && deltaY < 10 && deltaTime < 300) {
         term.focus();
+      }
+    }, { passive: true });
+
+    // ===========================================
+    // セッションタブバーのイベントハンドラ
+    // ===========================================
+
+    // タブバーのクリック/タップイベント
+    if (sessionTabsContainer) {
+      sessionTabsContainer.addEventListener('click', (e) => {
+        const tab = e.target.closest('.session-tab');
+        if (tab) {
+          const sessionName = tab.dataset.session;
+          switchSession(sessionName);
+        }
+      });
+    }
+
+    // 新規セッション追加ボタン
+    if (addSessionTabBtn) {
+      addSessionTabBtn.addEventListener('click', () => {
+        // 新規セッションを作成してアタッチ
+        attachToSession(null);
+      });
+    }
+
+    // 30秒ごとにセッション一覧を更新
+    setInterval(() => {
+      if (isAttached) {
+        updateSessionTabs();
+      }
+    }, 30000);
+
+    // ===========================================
+    // スワイプジェスチャー（画面端からのスワイプ）
+    // ===========================================
+
+    let swipeStartX = 0;
+    let swipeStartY = 0;
+    let swipeStartTime = 0;
+    const EDGE_WIDTH = 40; // 画面端からの検出幅（px）
+    const SWIPE_THRESHOLD_X = 50; // 水平スワイプ距離の閾値（px）
+    const SWIPE_THRESHOLD_Y = 30; // 垂直移動の許容範囲（px）
+
+    terminalElement.addEventListener('touchstart', (e) => {
+      const touch = e.touches[0];
+      swipeStartX = touch.clientX;
+      swipeStartY = touch.clientY;
+      swipeStartTime = Date.now();
+    }, { passive: true });
+
+    terminalElement.addEventListener('touchend', (e) => {
+      const touch = e.changedTouches[0];
+      const deltaX = touch.clientX - swipeStartX;
+      const deltaY = Math.abs(touch.clientY - swipeStartY);
+      const deltaTime = Date.now() - swipeStartTime;
+      const screenWidth = window.innerWidth;
+
+      // スワイプ判定: 水平50px以上、垂直30px以下、500ms以内
+      if (Math.abs(deltaX) < SWIPE_THRESHOLD_X || deltaY > SWIPE_THRESHOLD_Y || deltaTime > 500) {
+        return;
+      }
+
+      // 左端からの右スワイプ → 前のセッション
+      if (swipeStartX < EDGE_WIDTH && deltaX > 0) {
+        log('左端スワイプ検出: 前のセッションへ');
+        switchToPreviousSession();
+        return;
+      }
+
+      // 右端からの左スワイプ → 次のセッション
+      if (swipeStartX > screenWidth - EDGE_WIDTH && deltaX < 0) {
+        log('右端スワイプ検出: 次のセッションへ');
+        switchToNextSession();
+        return;
       }
     }, { passive: true });
 

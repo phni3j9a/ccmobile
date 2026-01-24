@@ -519,6 +519,7 @@ io.on('connection', (socket) => {
 
   let ptyProcess = null;
   let currentSessionName = null;
+  let ptyId = 0; // 各PTYにユニークIDを割り当て
 
   // セッションに接続
   socket.on('attach', (data) => {
@@ -554,6 +555,7 @@ io.on('connection', (socket) => {
       // tmuxセッションにアタッチ
       ptyProcess = attachTmuxSession(fullName);
       currentSessionName = fullName;
+      const thisPtyId = ++ptyId; // このPTYのID
 
       // PTYからの出力をクライアントに送信
       ptyProcess.onData((data) => {
@@ -562,7 +564,12 @@ io.on('connection', (socket) => {
 
       // PTYプロセス終了時（デタッチ時も発火）
       ptyProcess.onExit(({ exitCode, signal }) => {
-        console.log('PTYプロセス終了, exitCode:', exitCode, 'signal:', signal, 'session:', currentSessionName);
+        console.log('PTYプロセス終了, exitCode:', exitCode, 'signal:', signal, 'session:', currentSessionName, 'ptyId:', thisPtyId, 'currentPtyId:', ptyId);
+        // 現在のPTYでなければ無視（切り替え中の古いPTY）
+        if (thisPtyId !== ptyId) {
+          console.log('古いPTYのonExit、無視します');
+          return;
+        }
         socket.emit('detached', { exitCode, signal, sessionName: currentSessionName });
         ptyProcess = null;
       });
@@ -591,6 +598,70 @@ io.on('connection', (socket) => {
       } catch (e) {
         console.error('リサイズエラー:', e.message);
       }
+    }
+  });
+
+  // セッション切り替え（デタッチせずに別セッションへ）
+  socket.on('switch', (data) => {
+    const newSessionName = data?.sessionName;
+    if (!newSessionName) {
+      socket.emit('error', { message: 'セッション名が指定されていません' });
+      return;
+    }
+
+    try {
+      const fullName = getFullSessionName(newSessionName);
+
+      // セッションが存在しなければエラー
+      if (!tmuxSessionExists(fullName)) {
+        socket.emit('error', { message: 'セッションが存在しません', error: fullName });
+        return;
+      }
+
+      // 既存のPTYを終了（tmuxはkillしない）
+      if (ptyProcess) {
+        try {
+          ptyProcess.kill();
+        } catch (e) {
+          console.error('PTY切断エラー（switch）:', e.message);
+        }
+        ptyProcess = null;
+      }
+
+      // 新しいセッションにアタッチ
+      ptyProcess = attachTmuxSession(fullName);
+      const oldSessionName = currentSessionName;
+      currentSessionName = fullName;
+      const thisPtyId = ++ptyId; // このPTYのID
+
+      // PTYからの出力をクライアントに送信
+      ptyProcess.onData((data) => {
+        socket.emit('output', data);
+      });
+
+      // PTYプロセス終了時
+      ptyProcess.onExit(({ exitCode, signal }) => {
+        console.log('PTYプロセス終了（switch後）, exitCode:', exitCode, 'signal:', signal, 'session:', currentSessionName, 'ptyId:', thisPtyId, 'currentPtyId:', ptyId);
+        // 現在のPTYでなければ無視（切り替え中の古いPTY）
+        if (thisPtyId !== ptyId) {
+          console.log('古いPTYのonExit、無視します');
+          return;
+        }
+        socket.emit('detached', { exitCode, signal, sessionName: currentSessionName });
+        ptyProcess = null;
+      });
+
+      // 切り替え完了を通知
+      socket.emit('switched', {
+        sessionName: fullName,
+        displayName: fullName.replace(config.SESSION_PREFIX, ''),
+        oldSessionName: oldSessionName
+      });
+
+      console.log('セッション切り替え:', oldSessionName, '->', fullName);
+    } catch (e) {
+      console.error('セッション切り替えエラー:', e.message);
+      socket.emit('error', { message: 'セッション切り替えに失敗しました', error: e.message });
     }
   });
 

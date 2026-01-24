@@ -339,6 +339,11 @@ html, body {
   display: none;
 }
 
+/* セッションタブバー（デスクトップでは非表示） */
+#session-tab-bar {
+  display: none;
+}
+
 /* ステータスバー */
 #status-bar {
   position: absolute;
@@ -699,19 +704,19 @@ html, body {
     padding: 8px 10px;
   }
 
-  /* ターミナルコンテナ調整 */
+  /* ターミナルコンテナ調整（タブバー40px追加） */
   #terminal-container {
     top: 0;
-    bottom: 80px;
+    bottom: 120px;
     padding: 2px;
   }
 
-  /* 特殊キーツールバー表示 */
+  /* 特殊キーツールバー表示（タブバー40px追加） */
   #special-keys-toolbar {
     display: flex;
     flex-wrap: nowrap;
     position: fixed;
-    bottom: 36px;
+    bottom: 76px;
     left: 0;
     right: 0;
     height: 44px;
@@ -724,6 +729,81 @@ html, body {
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
     z-index: 50;
+  }
+
+  /* セッションタブバー */
+  #session-tab-bar {
+    display: flex;
+    position: fixed;
+    bottom: 36px;
+    left: 0;
+    right: 0;
+    height: 40px;
+    background: var(--bg-tertiary);
+    border-top: 1px solid var(--fg-secondary);
+    align-items: center;
+    padding: 0 4px;
+    gap: 4px;
+    z-index: 50;
+  }
+
+  .session-tabs-container {
+    flex: 1;
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .session-tabs-container::-webkit-scrollbar {
+    display: none;
+  }
+
+  .session-tab {
+    flex-shrink: 0;
+    padding: 6px 12px;
+    background: var(--bg-secondary);
+    color: var(--fg-secondary);
+    border: 1px solid var(--fg-secondary);
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: monospace;
+    cursor: pointer;
+    touch-action: manipulation;
+    white-space: nowrap;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .session-tab:active {
+    background: var(--fg-secondary);
+  }
+
+  .session-tab.active {
+    background: var(--accent-blue);
+    color: var(--bg-tertiary);
+    border-color: var(--accent-blue);
+  }
+
+  .tab-add-btn {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    background: var(--accent-green);
+    color: var(--bg-tertiary);
+    border: none;
+    border-radius: 6px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  .tab-add-btn:active {
+    background: var(--accent-green-bright);
   }
 
   #special-keys-toolbar::-webkit-scrollbar {
@@ -775,10 +855,14 @@ html, body {
 
 /* キーボード表示時のレイアウト調整 */
 body.keyboard-visible #terminal-container {
-  bottom: calc(var(--keyboard-height, 0px) + 80px);
+  bottom: calc(var(--keyboard-height, 0px) + 120px);
 }
 
 body.keyboard-visible #special-keys-toolbar {
+  bottom: calc(var(--keyboard-height, 0px) + 76px);
+}
+
+body.keyboard-visible #session-tab-bar {
   bottom: calc(var(--keyboard-height, 0px) + 36px);
 }
 
