@@ -943,6 +943,11 @@
           socket.emit('input', '\x02['); // Ctrl+b [
         }
         log('スクロールモード ON (tmuxコピーモード)');
+        // キーボードを閉じる（ブラウザの非同期フォーカス対策で遅延実行）
+        if (term && term.textarea) {
+          term.textarea.blur();
+          setTimeout(() => term.textarea.blur(), 50);
+        }
       } else {
         // スクロールモードOFF
         scrollModeActive = false;
@@ -956,7 +961,8 @@
         }
         log('スクロールモード OFF');
       }
-      if (restoreFocus) {
+      // スクロールモードOFFの時だけフォーカスを戻す（ON時はキーボードを開かない）
+      if (restoreFocus && !scrollModeActive) {
         term.focus();
       }
     }
