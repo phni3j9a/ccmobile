@@ -1086,3 +1086,338 @@ body.offline #quick-actions {
   color: var(--bg-tertiary);
   border-color: var(--accent-blue);
 }
+
+/* ===========================================
+   ペーストモーダル
+   =========================================== */
+#paste-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1999;
+}
+
+#paste-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2000;
+  width: 90%;
+  max-width: 400px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+#paste-modal .modal-content {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+#paste-modal .modal-header {
+  color: var(--fg-primary);
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+#paste-textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 12px;
+  border: 1px solid var(--fg-secondary);
+  border-radius: 8px;
+  background: var(--bg-primary);
+  color: var(--fg-primary);
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+#paste-textarea::placeholder {
+  color: var(--fg-secondary);
+}
+
+#paste-textarea:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+}
+
+#paste-modal .modal-buttons {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+  justify-content: flex-end;
+}
+
+#paste-modal .modal-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+#paste-modal .modal-btn:not(.primary) {
+  background: var(--bg-primary);
+  color: var(--fg-primary);
+  border: 1px solid var(--fg-secondary);
+}
+
+#paste-modal .modal-btn:not(.primary):hover,
+#paste-modal .modal-btn:not(.primary):active {
+  background: var(--bg-tertiary);
+}
+
+#paste-modal .modal-btn.primary {
+  background: var(--accent-blue);
+  color: var(--bg-tertiary);
+}
+
+#paste-modal .modal-btn.primary:hover,
+#paste-modal .modal-btn.primary:active {
+  background: var(--accent-blue-bright);
+}
+
+/* ===========================================
+   画像アップロードモーダル
+   =========================================== */
+#upload-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1999;
+}
+
+#upload-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2000;
+  width: 90%;
+  max-width: 400px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.upload-modal-content {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+#upload-modal .modal-header {
+  color: var(--fg-primary);
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+/* ファイル選択エリア */
+.upload-drop-area {
+  position: relative;
+  border: 2px dashed var(--fg-secondary);
+  border-radius: 12px;
+  padding: 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  min-height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.upload-drop-area:hover,
+.upload-drop-area:active {
+  border-color: var(--accent-blue);
+  background: rgba(155, 184, 216, 0.1);
+}
+
+.upload-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.upload-icon {
+  font-size: 48px;
+  opacity: 0.8;
+}
+
+.upload-text {
+  color: var(--fg-primary);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.upload-hint {
+  color: var(--fg-secondary);
+  font-size: 12px;
+}
+
+/* プレビュー */
+.upload-preview {
+  position: relative;
+  width: 100%;
+  max-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.upload-preview img {
+  max-width: 100%;
+  max-height: 200px;
+  border-radius: 8px;
+  object-fit: contain;
+}
+
+.upload-clear-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent-red);
+  color: var(--bg-tertiary);
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.upload-clear-btn:hover,
+.upload-clear-btn:active {
+  background: var(--accent-red-bright);
+}
+
+/* 進捗表示 */
+.upload-progress {
+  margin-top: 16px;
+}
+
+.upload-progress-bar {
+  height: 8px;
+  background: var(--bg-primary);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.upload-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-blue), var(--accent-blue-bright));
+  width: 0;
+  transition: width 0.3s ease;
+}
+
+#upload-progress-text {
+  display: block;
+  color: var(--fg-secondary);
+  font-size: 12px;
+  margin-top: 8px;
+  text-align: center;
+}
+
+/* 結果表示 */
+.upload-result {
+  margin-top: 16px;
+}
+
+.upload-path-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-primary);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.upload-path-container code {
+  flex: 1;
+  color: var(--accent-cyan);
+  font-size: 13px;
+  font-family: monospace;
+  word-break: break-all;
+  overflow-wrap: break-word;
+}
+
+.upload-copy-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.upload-copy-btn:hover,
+.upload-copy-btn:active {
+  opacity: 1;
+}
+
+/* ボタン */
+#upload-modal .modal-buttons {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+  justify-content: flex-end;
+}
+
+#upload-modal .modal-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+#upload-modal .modal-btn:not(.primary) {
+  background: var(--bg-primary);
+  color: var(--fg-primary);
+  border: 1px solid var(--fg-secondary);
+}
+
+#upload-modal .modal-btn:not(.primary):hover,
+#upload-modal .modal-btn:not(.primary):active {
+  background: var(--bg-tertiary);
+}
+
+#upload-modal .modal-btn.primary {
+  background: var(--accent-blue);
+  color: var(--bg-tertiary);
+}
+
+#upload-modal .modal-btn.primary:hover,
+#upload-modal .modal-btn.primary:active {
+  background: var(--accent-blue-bright);
+}
+
+#upload-modal .modal-btn.primary:disabled {
+  background: var(--fg-secondary);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* 画像アップロードボタン */
+.key-btn.image-btn {
+  font-size: 16px;
+}

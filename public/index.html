@@ -60,6 +60,7 @@
   <div id="special-keys-toolbar" role="toolbar" aria-label="特殊キー入力">
     <button class="key-btn scroll-btn" id="scroll-mode-btn" title="スクロールモード (Ctrl+b [)" aria-label="スクロールモード切り替え" aria-pressed="false">📜</button>
     <button class="key-btn paste-btn" id="paste-btn" aria-label="クリップボードからペースト">📋</button>
+    <button class="key-btn image-btn" id="image-upload-btn" title="画像をアップロード" aria-label="画像をアップロード">🖼️</button>
     <button class="key-btn" data-key="Escape" aria-label="Escape">Esc</button>
     <button class="key-btn" data-key="Tab" aria-label="Tab">Tab</button>
     <button class="key-btn" data-key="ShiftTab" aria-label="Shift+Tab">⇧Tab</button>
@@ -137,6 +138,63 @@
     </div>
   </aside>
   <div id="settings-overlay" class="hidden" aria-hidden="true"></div>
+
+  <!-- ペーストモーダル -->
+  <div id="paste-modal" class="modal hidden" role="dialog" aria-labelledby="paste-modal-title" aria-modal="true">
+    <div class="modal-content">
+      <div class="modal-header" id="paste-modal-title">ペーストするテキストを入力</div>
+      <textarea id="paste-textarea" rows="5" placeholder="テキストを入力..." aria-label="ペーストするテキスト"></textarea>
+      <div class="modal-buttons">
+        <button id="paste-cancel" class="modal-btn">キャンセル</button>
+        <button id="paste-ok" class="modal-btn primary">OK</button>
+      </div>
+    </div>
+  </div>
+  <div id="paste-modal-overlay" class="hidden" aria-hidden="true"></div>
+
+  <!-- 画像アップロードモーダル -->
+  <div id="upload-modal" class="modal hidden" role="dialog" aria-labelledby="upload-modal-title" aria-modal="true">
+    <div class="modal-content upload-modal-content">
+      <div class="modal-header" id="upload-modal-title">画像をアップロード</div>
+
+      <!-- ファイル選択エリア -->
+      <div id="upload-drop-area" class="upload-drop-area">
+        <input type="file" id="upload-file-input" accept="image/jpeg,image/png,image/gif,image/webp" hidden>
+        <div class="upload-placeholder">
+          <span class="upload-icon">🖼️</span>
+          <span class="upload-text">タップして画像を選択</span>
+          <span class="upload-hint">JPEG, PNG, GIF, WebP（最大10MB）</span>
+        </div>
+        <div id="upload-preview" class="upload-preview hidden">
+          <img id="upload-preview-img" alt="プレビュー">
+          <button id="upload-clear" class="upload-clear-btn" aria-label="選択を解除">✕</button>
+        </div>
+      </div>
+
+      <!-- 進捗表示 -->
+      <div id="upload-progress" class="upload-progress hidden">
+        <div class="upload-progress-bar">
+          <div id="upload-progress-fill" class="upload-progress-fill"></div>
+        </div>
+        <span id="upload-progress-text">アップロード中...</span>
+      </div>
+
+      <!-- 結果表示 -->
+      <div id="upload-result" class="upload-result hidden">
+        <div class="upload-path-container">
+          <code id="upload-path"></code>
+          <button id="upload-copy-path" class="upload-copy-btn" aria-label="パスをコピー">📋</button>
+        </div>
+      </div>
+
+      <div class="modal-buttons">
+        <button id="upload-cancel" class="modal-btn">閉じる</button>
+        <button id="upload-submit" class="modal-btn primary" disabled>アップロード</button>
+        <button id="upload-insert" class="modal-btn primary hidden">ターミナルに入力</button>
+      </div>
+    </div>
+  </div>
+  <div id="upload-modal-overlay" class="hidden" aria-hidden="true"></div>
 
   <script src="/js/terminal.js"></script>
 </body>

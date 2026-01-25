@@ -852,6 +852,369 @@
       term.focus();
     });
 
+    // ペーストモーダル
+    const pasteModal = document.getElementById('paste-modal');
+    const pasteModalOverlay = document.getElementById('paste-modal-overlay');
+    const pasteTextarea = document.getElementById('paste-textarea');
+    const pasteOkBtn = document.getElementById('paste-ok');
+    const pasteCancelBtn = document.getElementById('paste-cancel');
+
+    let pasteModalResolve = null;
+    let pasteModalRestoreFocus = true;
+
+    function showPasteModal(restoreFocus = true) {
+      return new Promise((resolve) => {
+        pasteModalResolve = resolve;
+        pasteModalRestoreFocus = restoreFocus;
+        pasteTextarea.value = '';
+        pasteModal.classList.remove('hidden');
+        pasteModalOverlay.classList.remove('hidden');
+        pasteTextarea.focus();
+      });
+    }
+
+    function closePasteModal(text) {
+      pasteModal.classList.add('hidden');
+      pasteModalOverlay.classList.add('hidden');
+      if (pasteModalResolve) {
+        pasteModalResolve(text);
+        pasteModalResolve = null;
+      }
+      if (pasteModalRestoreFocus) {
+        term.focus();
+      }
+    }
+
+    // OKボタン
+    pasteOkBtn.addEventListener('click', () => {
+      const text = pasteTextarea.value;
+      closePasteModal(text);
+    });
+
+    // キャンセルボタン
+    pasteCancelBtn.addEventListener('click', () => {
+      closePasteModal(null);
+    });
+
+    // オーバーレイクリックでキャンセル
+    pasteModalOverlay.addEventListener('click', () => {
+      closePasteModal(null);
+    });
+
+    // Escキーでキャンセル
+    pasteModal.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closePasteModal(null);
+      }
+    });
+
+    // ===========================================
+    // 画像アップロード機能
+    // ===========================================
+
+    const imageUploadBtn = document.getElementById('image-upload-btn');
+    const uploadModal = document.getElementById('upload-modal');
+    const uploadModalOverlay = document.getElementById('upload-modal-overlay');
+    const uploadDropArea = document.getElementById('upload-drop-area');
+    const uploadFileInput = document.getElementById('upload-file-input');
+    const uploadPlaceholder = uploadDropArea.querySelector('.upload-placeholder');
+    const uploadPreview = document.getElementById('upload-preview');
+    const uploadPreviewImg = document.getElementById('upload-preview-img');
+    const uploadClearBtn = document.getElementById('upload-clear');
+    const uploadProgress = document.getElementById('upload-progress');
+    const uploadProgressFill = document.getElementById('upload-progress-fill');
+    const uploadProgressText = document.getElementById('upload-progress-text');
+    const uploadResult = document.getElementById('upload-result');
+    const uploadPath = document.getElementById('upload-path');
+    const uploadCopyPathBtn = document.getElementById('upload-copy-path');
+    const uploadCancelBtn = document.getElementById('upload-cancel');
+    const uploadSubmitBtn = document.getElementById('upload-submit');
+    const uploadInsertBtn = document.getElementById('upload-insert');
+
+    let selectedFile = null;
+    let uploadedPath = null;
+
+    // モーダルを開く
+    function showUploadModal() {
+      resetUploadModal();
+      uploadModal.classList.remove('hidden');
+      uploadModalOverlay.classList.remove('hidden');
+    }
+
+    // モーダルを閉じる
+    function closeUploadModal() {
+      uploadModal.classList.add('hidden');
+      uploadModalOverlay.classList.add('hidden');
+      term.focus();
+    }
+
+    // モーダルをリセット
+    function resetUploadModal() {
+      selectedFile = null;
+      uploadedPath = null;
+      uploadFileInput.value = '';
+      uploadPlaceholder.classList.remove('hidden');
+      uploadPreview.classList.add('hidden');
+      uploadPreviewImg.src = '';
+      uploadProgress.classList.add('hidden');
+      uploadProgressFill.style.width = '0%';
+      uploadResult.classList.add('hidden');
+      uploadPath.textContent = '';
+      uploadSubmitBtn.disabled = true;
+      uploadSubmitBtn.classList.remove('hidden');
+      uploadInsertBtn.classList.add('hidden');
+      uploadCancelBtn.textContent = '閉じる';
+    }
+
+    // ファイル選択エリアクリック
+    uploadDropArea.addEventListener('click', () => {
+      if (!selectedFile && !uploadedPath) {
+        uploadFileInput.click();
+      }
+    });
+
+    // ファイル選択
+    uploadFileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        handleFileSelect(file);
+      }
+    });
+
+    // ファイル選択処理
+    function handleFileSelect(file) {
+      // MIMEタイプチェック
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        showToast('許可されていないファイル形式です', 'error');
+        return;
+      }
+
+      // サイズチェック（10MB）
+      if (file.size > 10 * 1024 * 1024) {
+        showToast('ファイルサイズが大きすぎます（上限: 10MB）', 'error');
+        return;
+      }
+
+      selectedFile = file;
+
+      // プレビュー表示
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        uploadPreviewImg.src = e.target.result;
+        uploadPlaceholder.classList.add('hidden');
+        uploadPreview.classList.remove('hidden');
+        uploadSubmitBtn.disabled = false;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // 選択クリア
+    uploadClearBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      selectedFile = null;
+      uploadFileInput.value = '';
+      uploadPreviewImg.src = '';
+      uploadPlaceholder.classList.remove('hidden');
+      uploadPreview.classList.add('hidden');
+      uploadSubmitBtn.disabled = true;
+    });
+
+    // アップロード実行
+    uploadSubmitBtn.addEventListener('click', async () => {
+      if (!selectedFile) return;
+
+      uploadSubmitBtn.disabled = true;
+      uploadProgress.classList.remove('hidden');
+      uploadProgressText.textContent = 'アップロード中...';
+
+      const formData = new FormData();
+      formData.append('image', selectedFile);
+
+      try {
+        const xhr = new XMLHttpRequest();
+
+        // 進捗更新
+        xhr.upload.addEventListener('progress', (e) => {
+          if (e.lengthComputable) {
+            const percent = Math.round((e.loaded / e.total) * 100);
+            uploadProgressFill.style.width = percent + '%';
+            uploadProgressText.textContent = `アップロード中... ${percent}%`;
+          }
+        });
+
+        // 完了処理
+        xhr.addEventListener('load', () => {
+          if (xhr.status === 200) {
+            try {
+              const result = JSON.parse(xhr.responseText);
+              if (result.success) {
+                uploadedPath = result.path;
+                uploadProgressFill.style.width = '100%';
+                uploadProgressText.textContent = '完了';
+
+                // 結果表示
+                uploadPath.textContent = uploadedPath;
+                uploadResult.classList.remove('hidden');
+                uploadSubmitBtn.classList.add('hidden');
+                uploadInsertBtn.classList.remove('hidden');
+
+                showToast('画像をアップロードしました', 'success');
+                log('画像アップロード完了: ' + uploadedPath);
+              } else {
+                throw new Error(result.error || 'アップロードに失敗しました');
+              }
+            } catch (e) {
+              showToast('アップロードエラー: ' + e.message, 'error');
+              uploadProgress.classList.add('hidden');
+              uploadSubmitBtn.disabled = false;
+            }
+          } else {
+            let errorMsg = 'アップロードに失敗しました';
+            try {
+              const result = JSON.parse(xhr.responseText);
+              errorMsg = result.error || errorMsg;
+            } catch (e) {}
+            showToast('アップロードエラー: ' + errorMsg, 'error');
+            uploadProgress.classList.add('hidden');
+            uploadSubmitBtn.disabled = false;
+          }
+        });
+
+        // エラー処理
+        xhr.addEventListener('error', () => {
+          showToast('ネットワークエラーが発生しました', 'error');
+          uploadProgress.classList.add('hidden');
+          uploadSubmitBtn.disabled = false;
+        });
+
+        xhr.open('POST', '/api/upload');
+        xhr.send(formData);
+      } catch (e) {
+        showToast('アップロードエラー: ' + e.message, 'error');
+        uploadProgress.classList.add('hidden');
+        uploadSubmitBtn.disabled = false;
+      }
+    });
+
+    // テキストをクリップボードにコピー（iOS Safari対応）
+    function copyToClipboard(text, buttonElement) {
+      return new Promise((resolve) => {
+        // 方法: input要素を使用（iOS Safariで最も確実）
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = text;
+
+        // 画面内に配置（iOS Safariは画面外の要素からコピーできない）
+        input.style.position = 'fixed';
+        input.style.top = '50%';
+        input.style.left = '0';
+        input.style.width = '100%';
+        input.style.padding = '10px';
+        input.style.fontSize = '16px'; // iOS Safari: 16px未満だとズームする
+        input.style.zIndex = '9999';
+        input.style.opacity = '0';
+        input.style.pointerEvents = 'none';
+
+        document.body.appendChild(input);
+
+        // iOS Safari: 選択範囲を設定
+        input.focus();
+        input.setSelectionRange(0, text.length);
+
+        let success = false;
+        try {
+          success = document.execCommand('copy');
+        } catch (e) {
+          success = false;
+        }
+
+        document.body.removeChild(input);
+
+        // Clipboard APIも試す（成功していなければ）
+        if (!success && navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text)
+            .then(() => resolve(true))
+            .catch(() => resolve(false));
+        } else {
+          resolve(success);
+        }
+      });
+    }
+
+    // パスをコピー
+    uploadCopyPathBtn.addEventListener('click', async (e) => {
+      if (!uploadedPath) return;
+
+      const success = await copyToClipboard(uploadedPath, e.target);
+      if (success) {
+        showToast('パスをコピーしました', 'success', 1500);
+      } else {
+        // 最終フォールバック: 選択状態で表示
+        uploadPath.focus();
+        const range = document.createRange();
+        range.selectNodeContents(uploadPath);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+        showToast('パスを選択しました。コピーしてください', 'info', 2000);
+      }
+    });
+
+    // ターミナルに入力
+    uploadInsertBtn.addEventListener('click', () => {
+      if (!uploadedPath) return;
+
+      if (socket && socket.connected) {
+        // パスのみ入力（ユーザーがプロンプトを続けて入力）
+        socket.emit('input', uploadedPath + ' ');
+        log('画像パスをターミナルに入力: ' + uploadedPath);
+      }
+
+      closeUploadModal();
+    });
+
+    // モーダルを閉じる
+    uploadCancelBtn.addEventListener('click', closeUploadModal);
+    uploadModalOverlay.addEventListener('click', closeUploadModal);
+
+    // Escキーでキャンセル
+    uploadModal.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeUploadModal();
+      }
+    });
+
+    // 画像アップロードボタン: キーボード状態維持 + タップ/スワイプ判定
+    let imageBtnWasFocused = false;
+    let imageBtnStartX = 0;
+    let imageBtnStartY = 0;
+
+    if (imageUploadBtn) {
+      imageUploadBtn.addEventListener('touchstart', (e) => {
+        imageBtnWasFocused = document.activeElement === term.textarea;
+        imageBtnStartX = e.touches[0].clientX;
+        imageBtnStartY = e.touches[0].clientY;
+      }, { passive: true });
+
+      imageUploadBtn.addEventListener('touchend', (e) => {
+        const deltaX = Math.abs(e.changedTouches[0].clientX - imageBtnStartX);
+        const deltaY = Math.abs(e.changedTouches[0].clientY - imageBtnStartY);
+        if (deltaX > 10 || deltaY > 10) return; // スワイプは無視
+
+        e.preventDefault();
+        showUploadModal();
+      });
+
+      imageUploadBtn.addEventListener('click', (e) => {
+        if (e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) return;
+        e.preventDefault();
+        showUploadModal();
+      });
+    }
+
     // ペースト機能
     async function pasteFromClipboard(restoreFocus = true) {
       try {
@@ -861,17 +1224,19 @@
             socket.emit('input', text);
           }
         } else {
-          const text = prompt('ペーストするテキストを入力:');
+          const text = await showPasteModal(restoreFocus);
           if (text && socket && socket.connected) {
             socket.emit('input', text);
           }
+          return; // restoreFocusはshowPasteModal内で処理済み
         }
       } catch (e) {
         log('ペーストエラー: ' + e.message);
-        const text = prompt('ペーストするテキストを入力:');
+        const text = await showPasteModal(restoreFocus);
         if (text && socket && socket.connected) {
           socket.emit('input', text);
         }
+        return; // restoreFocusはshowPasteModal内で処理済み
       }
       if (restoreFocus) {
         term.focus();

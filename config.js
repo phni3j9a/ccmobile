@@ -28,7 +28,13 @@ const config = {
   SOCKET_PING_INTERVAL: parseInt(process.env.SOCKET_PING_INTERVAL, 10) || 25000,
 
   // トークンリフレッシュ設定（ミリ秒）
-  TOKEN_REFRESH_BUFFER_MS: parseInt(process.env.TOKEN_REFRESH_BUFFER_MS, 10) || 5 * 60 * 1000
+  TOKEN_REFRESH_BUFFER_MS: parseInt(process.env.TOKEN_REFRESH_BUFFER_MS, 10) || 5 * 60 * 1000,
+
+  // 画像アップロード設定
+  UPLOAD_DIR: process.env.UPLOAD_DIR || require('path').join(process.env.HOME, 'uploads', 'ccmobile'),
+  UPLOAD_MAX_SIZE: parseInt(process.env.UPLOAD_MAX_SIZE, 10) || 10 * 1024 * 1024, // 10MB
+  UPLOAD_ALLOWED_TYPES: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+  UPLOAD_CLEANUP_DAYS: parseInt(process.env.UPLOAD_CLEANUP_DAYS, 10) || 7
 };
 
 // 設定の検証

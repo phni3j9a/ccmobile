@@ -3,8 +3,10 @@ const http = require('http');
 const { Server } = require('socket.io');
 const pty = require('node-pty');
 const path = require('path');
+const fs = require('fs');
 const { execFileSync, spawn } = require('child_process');
 const helmet = require('helmet');
+const multer = require('multer');
 const config = require('./config');
 
 const app = express();
@@ -267,6 +269,126 @@ app.put('/api/sessions/:name/rename', (req, res) => {
     res.status(400).json({ success: false, error: e.message });
   }
 });
+
+// ===========================================
+// 画像アップロード
+// ===========================================
+
+// アップロードディレクトリを作成
+function ensureUploadDir() {
+  if (!fs.existsSync(config.UPLOAD_DIR)) {
+    fs.mkdirSync(config.UPLOAD_DIR, { recursive: true, mode: 0o755 });
+    console.log('アップロードディレクトリ作成:', config.UPLOAD_DIR);
+  }
+}
+
+// ファイル名を生成（YYYY-MM-DD_HHMMSS_<random6>.ext）
+function generateFileName(originalName) {
+  const now = new Date();
+  const datePart = now.toISOString().slice(0, 10); // YYYY-MM-DD
+  const timePart = now.toTimeString().slice(0, 8).replace(/:/g, ''); // HHMMSS
+  const random = Math.random().toString(36).substring(2, 8);
+  const ext = path.extname(originalName).toLowerCase() || '.jpg';
+  return `${datePart}_${timePart}_${random}${ext}`;
+}
+
+// multer設定
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    ensureUploadDir();
+    cb(null, config.UPLOAD_DIR);
+  },
+  filename: (req, file, cb) => {
+    cb(null, generateFileName(file.originalname));
+  }
+});
+
+const fileFilter = (req, file, cb) => {
+  if (config.UPLOAD_ALLOWED_TYPES.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('許可されていないファイル形式です。JPEG, PNG, GIF, WebPのみ対応しています。'), false);
+  }
+};
+
+const upload = multer({
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: config.UPLOAD_MAX_SIZE
+  }
+});
+
+// 画像アップロードAPI
+app.post('/api/upload', upload.single('image'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ success: false, error: '画像ファイルが送信されませんでした' });
+  }
+
+  const filePath = req.file.path;
+  console.log('画像アップロード完了:', filePath);
+
+  res.json({
+    success: true,
+    path: filePath,
+    filename: req.file.filename,
+    size: req.file.size,
+    mimetype: req.file.mimetype
+  });
+});
+
+// multerエラーハンドラ
+app.use((err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+        success: false,
+        error: `ファイルサイズが大きすぎます（上限: ${config.UPLOAD_MAX_SIZE / 1024 / 1024}MB）`
+      });
+    }
+    return res.status(400).json({ success: false, error: err.message });
+  }
+  if (err) {
+    return res.status(400).json({ success: false, error: err.message });
+  }
+  next();
+});
+
+// 古い画像ファイルをクリーンアップ
+function cleanupOldImages() {
+  if (!fs.existsSync(config.UPLOAD_DIR)) {
+    return;
+  }
+
+  const now = Date.now();
+  const maxAge = config.UPLOAD_CLEANUP_DAYS * 24 * 60 * 60 * 1000;
+  let cleanedCount = 0;
+
+  try {
+    const files = fs.readdirSync(config.UPLOAD_DIR);
+    for (const file of files) {
+      const filePath = path.join(config.UPLOAD_DIR, file);
+      const stats = fs.statSync(filePath);
+
+      if (stats.isFile() && (now - stats.mtimeMs) > maxAge) {
+        fs.unlinkSync(filePath);
+        cleanedCount++;
+      }
+    }
+
+    if (cleanedCount > 0) {
+      console.log(`古い画像を${cleanedCount}件削除しました`);
+    }
+  } catch (e) {
+    console.error('画像クリーンアップエラー:', e.message);
+  }
+}
+
+// サーバー起動時にクリーンアップ
+cleanupOldImages();
+
+// 24時間ごとにクリーンアップ
+setInterval(cleanupOldImages, 24 * 60 * 60 * 1000);
 
 // ===========================================
 // OAuthトークン管理
