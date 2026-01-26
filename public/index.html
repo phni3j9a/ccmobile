@@ -21,6 +21,9 @@
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-unicode11@0.6.0/lib/xterm-addon-unicode11.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.js"></script>
 
+  <!-- Lucide Icons -->
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+
   <!-- Socket.io -->
   <script src="/socket.io/socket.io.js"></script>
 
@@ -46,11 +49,6 @@
     </div>
   </div>
 
-  <!-- 設定ボタン -->
-  <nav id="quick-actions" aria-label="クイックアクション">
-    <button class="quick-btn settings-btn" id="settings-toggle" aria-label="設定を開く">⚙</button>
-  </nav>
-
   <!-- ターミナルコンテナ -->
   <div id="terminal-container">
     <div id="terminal"></div>
@@ -58,18 +56,35 @@
 
   <!-- 特殊キーツールバー -->
   <div id="special-keys-toolbar" role="toolbar" aria-label="特殊キー入力">
-    <button class="key-btn scroll-btn" id="scroll-mode-btn" title="スクロールモード (Ctrl+b [)" aria-label="スクロールモード切り替え" aria-pressed="false">📜</button>
-    <button class="key-btn paste-btn" id="paste-btn" aria-label="クリップボードからペースト">📋</button>
-    <button class="key-btn image-btn" id="image-upload-btn" title="画像をアップロード" aria-label="画像をアップロード">🖼️</button>
+    <button class="key-btn scroll-btn" id="scroll-mode-btn" title="スクロールモード (Ctrl+b [)" aria-label="スクロールモード切り替え" aria-pressed="false">
+      <i data-lucide="scroll-text" class="icon"></i>
+    </button>
+    <button class="key-btn settings-btn" id="settings-toggle" aria-label="設定を開く">
+      <i data-lucide="settings" class="icon"></i>
+    </button>
+    <button class="key-btn paste-btn" id="paste-btn" aria-label="クリップボードからペースト">
+      <i data-lucide="clipboard-paste" class="icon"></i>
+    </button>
+    <button class="key-btn image-btn" id="image-upload-btn" title="画像をアップロード" aria-label="画像をアップロード">
+      <i data-lucide="image-plus" class="icon"></i>
+    </button>
     <button class="key-btn" data-key="Escape" aria-label="Escape">Esc</button>
     <button class="key-btn" data-key="Tab" aria-label="Tab">Tab</button>
     <button class="key-btn" data-key="ShiftTab" aria-label="Shift+Tab">⇧Tab</button>
     <button class="key-btn" data-key="Enter" aria-label="Enter">Enter</button>
 
-    <button class="key-btn" data-key="ArrowUp" aria-label="上矢印">↑</button>
-    <button class="key-btn" data-key="ArrowDown" aria-label="下矢印">↓</button>
-    <button class="key-btn" data-key="ArrowLeft" aria-label="左矢印">←</button>
-    <button class="key-btn" data-key="ArrowRight" aria-label="右矢印">→</button>
+    <button class="key-btn arrow-btn" data-key="ArrowUp" aria-label="上矢印">
+      <i data-lucide="chevron-up" class="icon"></i>
+    </button>
+    <button class="key-btn arrow-btn" data-key="ArrowDown" aria-label="下矢印">
+      <i data-lucide="chevron-down" class="icon"></i>
+    </button>
+    <button class="key-btn arrow-btn" data-key="ArrowLeft" aria-label="左矢印">
+      <i data-lucide="chevron-left" class="icon"></i>
+    </button>
+    <button class="key-btn arrow-btn" data-key="ArrowRight" aria-label="右矢印">
+      <i data-lucide="chevron-right" class="icon"></i>
+    </button>
     <button class="key-btn" data-key="PageUp" aria-label="Page Up">PgUp</button>
     <button class="key-btn" data-key="PageDown" aria-label="Page Down">PgDn</button>
     <button class="key-btn" data-ctrl="c" aria-label="Ctrl+C (中断)">^C</button>
@@ -81,7 +96,9 @@
   <!-- セッションタブバー -->
   <div id="session-tab-bar" role="tablist" aria-label="セッション切り替え">
     <div id="session-tabs" class="session-tabs-container"></div>
-    <button id="add-session-tab" class="tab-add-btn" aria-label="新しいセッション">+</button>
+    <button id="add-session-tab" class="tab-add-btn" aria-label="新しいセッション">
+      <i data-lucide="plus" class="icon"></i>
+    </button>
   </div>
 
   <!-- ステータスバー -->
@@ -92,33 +109,50 @@
       <span class="usage-item-inline"><span class="usage-label-inline">5h</span><span id="usage-5h" class="usage-value">--</span></span>
       <span class="usage-sep">|</span>
       <span class="usage-item-inline"><span class="usage-label-inline">7d</span><span id="usage-7d" class="usage-value">--</span></span>
-      <button id="usage-refresh" class="usage-refresh-btn" aria-label="使用量を更新">↻</button>
+      <button id="usage-refresh" class="usage-refresh-btn" aria-label="使用量を更新">
+        <i data-lucide="refresh-cw" class="icon"></i>
+      </button>
     </span>
   </footer>
 
   <!-- コピーボタン（フローティング） -->
-  <button id="copy-btn" class="hidden" aria-label="選択したテキストをコピー">コピー</button>
+  <button id="copy-btn" class="hidden" aria-label="選択したテキストをコピー">
+    <i data-lucide="copy" class="icon"></i>
+    <span>コピー</span>
+  </button>
 
   <!-- 設定パネル -->
   <aside id="settings-panel" class="hidden" role="dialog" aria-labelledby="settings-title" aria-modal="true">
     <div class="settings-header">
       <span id="settings-title">設定</span>
-      <button id="settings-close" aria-label="設定を閉じる">✕</button>
+      <button id="settings-close" aria-label="設定を閉じる">
+        <i data-lucide="x" class="icon"></i>
+      </button>
     </div>
     <div class="settings-content">
       <div class="setting-item">
         <label id="theme-label">テーマ</label>
         <div class="theme-toggle" role="group" aria-labelledby="theme-label">
-          <button class="theme-btn" id="theme-light" data-theme="light" aria-label="ライトテーマに切り替え">☀️ ライト</button>
-          <button class="theme-btn active" id="theme-dark" data-theme="dark" aria-label="ダークテーマに切り替え">🌙 ダーク</button>
+          <button class="theme-btn" id="theme-light" data-theme="light" aria-label="ライトテーマに切り替え">
+            <i data-lucide="sun" class="icon"></i>
+            <span>ライト</span>
+          </button>
+          <button class="theme-btn active" id="theme-dark" data-theme="dark" aria-label="ダークテーマに切り替え">
+            <i data-lucide="moon" class="icon"></i>
+            <span>ダーク</span>
+          </button>
         </div>
       </div>
       <div class="setting-item">
         <label id="fontsize-label">フォントサイズ</label>
         <div class="font-size-controls" role="group" aria-labelledby="fontsize-label">
-          <button id="font-decrease" aria-label="フォントサイズを小さくする">−</button>
+          <button id="font-decrease" aria-label="フォントサイズを小さくする">
+            <i data-lucide="minus" class="icon"></i>
+          </button>
           <span id="font-size-display" aria-live="polite">14px</span>
-          <button id="font-increase" aria-label="フォントサイズを大きくする">+</button>
+          <button id="font-increase" aria-label="フォントサイズを大きくする">
+            <i data-lucide="plus" class="icon"></i>
+          </button>
         </div>
       </div>
       <div class="setting-item usage-section">
@@ -126,13 +160,17 @@
         <div id="claude-usage-container" aria-labelledby="usage-label">
           <div class="usage-loading">読み込み中...</div>
         </div>
-        <button id="refresh-usage-btn" class="refresh-btn" aria-label="使用状況を更新">🔄 更新</button>
+        <button id="refresh-usage-btn" class="refresh-btn" aria-label="使用状況を更新">
+          <i data-lucide="refresh-cw" class="icon"></i>
+          <span>更新</span>
+        </button>
       </div>
       <!-- セッション操作 -->
       <div class="setting-item session-section">
         <label id="session-label">セッション</label>
         <button id="detach-session-btn" class="session-control-btn" aria-label="現在のセッションから切断してセッション一覧へ戻る">
-          🔌 切断してセッション一覧へ
+          <i data-lucide="log-out" class="icon"></i>
+          <span>切断してセッション一覧へ</span>
         </button>
       </div>
     </div>
@@ -161,13 +199,15 @@
       <div id="upload-drop-area" class="upload-drop-area">
         <input type="file" id="upload-file-input" accept="image/jpeg,image/png,image/gif,image/webp" hidden>
         <div class="upload-placeholder">
-          <span class="upload-icon">🖼️</span>
+          <i data-lucide="image-plus" class="upload-icon"></i>
           <span class="upload-text">タップして画像を選択</span>
           <span class="upload-hint">JPEG, PNG, GIF, WebP（最大10MB）</span>
         </div>
         <div id="upload-preview" class="upload-preview hidden">
           <img id="upload-preview-img" alt="プレビュー">
-          <button id="upload-clear" class="upload-clear-btn" aria-label="選択を解除">✕</button>
+          <button id="upload-clear" class="upload-clear-btn" aria-label="選択を解除">
+            <i data-lucide="x" class="icon"></i>
+          </button>
         </div>
       </div>
 
@@ -183,7 +223,9 @@
       <div id="upload-result" class="upload-result hidden">
         <div class="upload-path-container">
           <code id="upload-path"></code>
-          <button id="upload-copy-path" class="upload-copy-btn" aria-label="パスをコピー">📋</button>
+          <button id="upload-copy-path" class="upload-copy-btn" aria-label="パスをコピー">
+            <i data-lucide="copy" class="icon"></i>
+          </button>
         </div>
       </div>
 

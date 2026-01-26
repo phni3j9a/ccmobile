@@ -393,9 +393,14 @@ html, body {
   background: rgba(255, 255, 255, 0.3);
 }
 
-/* Quick Actions Button */
-#quick-actions {
-  display: none;
+/* アイコンボタン */
+.key-btn.scroll-btn,
+.key-btn.settings-btn,
+.key-btn.paste-btn,
+.key-btn.image-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Terminal Container */
@@ -951,39 +956,6 @@ html, body {
    Mobile Touch Device Styles
    =========================================== */
 @media (hover: none) and (pointer: coarse) {
-  /* Settings Button */
-  #quick-actions {
-    display: block;
-    position: fixed;
-    top: env(safe-area-inset-top, 8px);
-    right: 8px;
-    z-index: 50;
-    padding-top: 8px;
-  }
-
-  .quick-btn {
-    padding: 10px 14px;
-    background: var(--bg-secondary);
-    color: var(--fg-primary);
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius-md);
-    font-size: var(--font-size-sm);
-    cursor: pointer;
-    transition: all var(--transition-fast);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-  }
-
-  .quick-btn:active {
-    background: var(--bg-tertiary);
-    transform: scale(0.95);
-  }
-
-  .quick-btn.settings-btn {
-    font-size: 18px;
-    padding: 10px 12px;
-  }
-
   /* Terminal Container adjustment */
   #terminal-container {
     top: 0;
@@ -1097,7 +1069,7 @@ html, body {
     flex-shrink: 0;
     min-width: 44px;
     height: 38px;
-    padding: 0 12px;
+    padding: 0 8px;
     background: var(--bg-primary);
     color: var(--fg-primary);
     border: 1px solid var(--border-color);
@@ -1120,18 +1092,10 @@ html, body {
     font-family: inherit;
   }
 
-  .key-btn.scroll-btn {
-    font-size: 16px;
-    font-family: inherit;
+  .key-btn.scroll-btn.active {
     background: var(--accent-info);
     border-color: var(--accent-info);
     color: #fff;
-  }
-
-  .key-btn.scroll-btn:active,
-  .key-btn.scroll-btn.active {
-    background: var(--accent-info-bright);
-    border-color: var(--accent-info-bright);
   }
 
   /* Status Bar adjustment */
@@ -1182,10 +1146,6 @@ body.offline #terminal-container {
   top: 44px;
 }
 
-body.offline #quick-actions {
-  top: calc(env(safe-area-inset-top, 8px) + 44px);
-}
-
 /* ===========================================
    xterm.js Customization
    =========================================== */
@@ -1225,10 +1185,6 @@ body.offline #quick-actions {
 @media (display-mode: standalone) {
   #terminal-container {
     top: env(safe-area-inset-top, 0);
-  }
-
-  #quick-actions {
-    top: calc(env(safe-area-inset-top, 8px) + 8px);
   }
 
   #toast-container {
@@ -1584,4 +1540,154 @@ body.offline #quick-actions {
 /* Image Upload Button */
 .key-btn.image-btn {
   font-size: 16px;
+}
+
+/* ===========================================
+   Lucide Icons Styling
+   =========================================== */
+.icon {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2;
+  vertical-align: middle;
+}
+
+/* ボタン内のアイコン配置 */
+button .icon {
+  display: inline-block;
+}
+
+/* アイコン + テキストのボタン */
+button .icon + span,
+button span + .icon {
+  margin-left: 6px;
+}
+
+/* 設定ボタンのアイコン */
+.settings-btn .icon {
+  width: 20px;
+  height: 20px;
+}
+
+/* ツールバーのアイコン */
+.key-btn .icon {
+  width: 18px;
+  height: 18px;
+}
+
+/* 矢印ボタンのアイコン */
+.key-btn.arrow-btn .icon {
+  width: 20px;
+  height: 20px;
+  stroke-width: 2.5;
+}
+
+/* タブ追加ボタンのアイコン */
+.tab-add-btn .icon {
+  width: 20px;
+  height: 20px;
+  stroke-width: 2.5;
+}
+
+/* ステータスバー更新ボタンのアイコン */
+.usage-refresh-btn .icon {
+  width: 14px;
+  height: 14px;
+}
+
+/* 設定パネル閉じるボタン */
+.settings-header button .icon {
+  width: 20px;
+  height: 20px;
+}
+
+/* テーマ切り替えボタン */
+.theme-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.theme-btn .icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* フォントサイズコントロール */
+.font-size-controls button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.font-size-controls button .icon {
+  width: 20px;
+  height: 20px;
+}
+
+/* 更新ボタン */
+.refresh-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.refresh-btn .icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* セッションコントロールボタン */
+.session-control-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.session-control-btn .icon {
+  width: 18px;
+  height: 18px;
+}
+
+/* コピーボタン */
+#copy-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#copy-btn .icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* アップロードモーダルのアイコン */
+.upload-icon {
+  width: 48px;
+  height: 48px;
+  stroke-width: 1.5;
+  color: var(--fg-muted);
+}
+
+.upload-clear-btn .icon {
+  width: 14px;
+  height: 14px;
+}
+
+.upload-copy-btn .icon {
+  width: 18px;
+  height: 18px;
+}
+
+/* スクロールモードアクティブ時のアイコン */
+.scroll-btn.active .icon {
+  color: #fff;
+}
+
+/* 回転アニメーション（更新ボタン用） */
+.usage-refresh-btn.spinning .icon {
+  animation: spin 0.6s ease-in-out infinite;
 }

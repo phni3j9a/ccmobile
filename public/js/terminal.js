@@ -784,6 +784,12 @@
       const btn = e.target.closest('.key-btn');
       if (!btn) return;
 
+      // 特別なボタン（独自のタッチハンドラを持つ）は除外
+      if (btn.id === 'settings-toggle' || btn.id === 'scroll-mode-btn' ||
+          btn.id === 'paste-btn' || btn.id === 'image-upload-btn') {
+        return;
+      }
+
       // タッチ開始時点でターミナルにフォーカスがあるか記録
       wasTerminalFocused = document.activeElement === term.textarea;
 
@@ -800,6 +806,12 @@
     specialKeysToolbar.addEventListener('touchend', (e) => {
       const btn = e.target.closest('.key-btn');
       if (!btn) return;
+
+      // 特別なボタン（独自のタッチハンドラを持つ）は除外
+      if (btn.id === 'settings-toggle' || btn.id === 'scroll-mode-btn' ||
+          btn.id === 'paste-btn' || btn.id === 'image-upload-btn') {
+        return;
+      }
 
       // タップかスワイプかを判定（移動距離10px以内ならタップ）
       const touchEndX = e.changedTouches[0].clientX;
@@ -840,6 +852,12 @@
 
       const btn = e.target.closest('.key-btn');
       if (!btn) return;
+
+      // 特別なボタン（独自のハンドラを持つ）は除外
+      if (btn.id === 'settings-toggle' || btn.id === 'scroll-mode-btn' ||
+          btn.id === 'paste-btn' || btn.id === 'image-upload-btn') {
+        return;
+      }
 
       e.preventDefault();
 
@@ -1304,7 +1322,6 @@
         // スクロールモードON
         scrollModeActive = true;
         scrollModeBtn.classList.add('active');
-        scrollModeBtn.textContent = '📜✓';
         scrollModeBtn.setAttribute('aria-pressed', 'true');
         terminalElement.classList.add('scroll-mode');
         // tmuxコピーモードに入る
@@ -1321,7 +1338,6 @@
         // スクロールモードOFF
         scrollModeActive = false;
         scrollModeBtn.classList.remove('active');
-        scrollModeBtn.textContent = '📜';
         scrollModeBtn.setAttribute('aria-pressed', 'false');
         terminalElement.classList.remove('scroll-mode');
         // tmuxコピーモードを抜ける
@@ -1633,7 +1649,36 @@
       });
     }
 
-    settingsToggle.addEventListener('click', openSettings);
+    // 設定ボタン: キーボード状態維持 + タップ/スワイプ判定
+    let settingsBtnWasFocused = false;
+    let settingsBtnStartX = 0;
+    let settingsBtnStartY = 0;
+    let settingsTouchEndProcessed = false;
+
+    settingsToggle.addEventListener('touchstart', (e) => {
+      settingsBtnWasFocused = document.activeElement === term.textarea;
+      settingsBtnStartX = e.touches[0].clientX;
+      settingsBtnStartY = e.touches[0].clientY;
+    }, { passive: true });
+
+    settingsToggle.addEventListener('touchend', (e) => {
+      const deltaX = Math.abs(e.changedTouches[0].clientX - settingsBtnStartX);
+      const deltaY = Math.abs(e.changedTouches[0].clientY - settingsBtnStartY);
+      if (deltaX > 10 || deltaY > 10) return; // スワイプは無視
+
+      e.preventDefault();
+      e.stopPropagation();
+      openSettings();
+      settingsTouchEndProcessed = true;
+      setTimeout(() => { settingsTouchEndProcessed = false; }, 400);
+    });
+
+    settingsToggle.addEventListener('click', (e) => {
+      // touchendで処理済みならスキップ
+      if (settingsTouchEndProcessed) return;
+      if (e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) return;
+      openSettings();
+    });
     settingsClose.addEventListener('click', closeSettings);
     settingsOverlay.addEventListener('click', closeSettings);
 
@@ -1905,6 +1950,18 @@
         .then(reg => log('ServiceWorker登録完了'))
         .catch(err => log('ServiceWorker登録失敗: ' + err.message));
     }
+
+    // Lucide Iconsを初期化（少し遅延させて確実に読み込み完了を待つ）
+    function initLucideIcons() {
+      if (typeof lucide !== 'undefined' && lucide.createIcons) {
+        lucide.createIcons();
+        log('Lucide Icons初期化完了');
+      } else {
+        log('Lucide Icons未読み込み、リトライ...');
+        setTimeout(initLucideIcons, 100);
+      }
+    }
+    setTimeout(initLucideIcons, 50);
 
     log('初期化完了');
   });
