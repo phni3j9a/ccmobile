@@ -32,5 +32,8 @@
     "claude",
     "tmux",
     "pwa"
-  ]
+  ],
+  "devDependencies": {
+    "playwright": "^1.58.0"
+  }
 }

@@ -22,7 +22,7 @@
     const detachSessionBtn = document.getElementById('detach-session-btn');
 
     // 設定
-    const FONT_SIZE_MIN = 10;
+    const FONT_SIZE_MIN = 6;
     const FONT_SIZE_MAX = 24;
     const STORAGE_KEY_FONT_SIZE = 'terminal-font-size';
     const STORAGE_KEY_LAST_SESSION = 'terminal-last-session';
@@ -98,7 +98,7 @@
     let scrollTouchIdentifier = null;
 
 
-    let currentFontSize = parseInt(localStorage.getItem(STORAGE_KEY_FONT_SIZE)) || 11;
+    let currentFontSize = parseInt(localStorage.getItem(STORAGE_KEY_FONT_SIZE)) || 10;
     let currentTheme = localStorage.getItem(STORAGE_KEY_THEME) || 'dark';
     let term = null;
     let socket = null;
