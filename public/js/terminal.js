@@ -937,6 +937,10 @@
 
     // モーダルを開く
     function showUploadModal() {
+      // キーボードを閉じる
+      if (term.textarea) {
+        term.textarea.blur();
+      }
       resetUploadModal();
       uploadModal.classList.remove('hidden');
       uploadModalOverlay.classList.remove('hidden');
