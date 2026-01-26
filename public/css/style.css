@@ -1043,11 +1043,21 @@ body.offline #quick-actions {
   background: var(--bg-secondary);
 }
 
-/* PWA スタンドアロンモード */
+/* PWA スタンドアロンモード（ダイナミックアイランド対応） */
 @media (display-mode: standalone) {
-  body {
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
+  /* ターミナル上部のダイナミックアイランド対応 */
+  #terminal-container {
+    top: env(safe-area-inset-top, 0);
+  }
+
+  /* 設定ボタンの位置調整 */
+  #quick-actions {
+    top: calc(env(safe-area-inset-top, 8px) + 8px);
+  }
+
+  /* トースト通知の位置調整 */
+  #toast-container {
+    top: calc(20px + env(safe-area-inset-top, 0px));
   }
 }
 
