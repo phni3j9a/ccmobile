@@ -98,7 +98,7 @@
     let scrollTouchIdentifier = null;
 
 
-    let currentFontSize = parseInt(localStorage.getItem(STORAGE_KEY_FONT_SIZE)) || 14;
+    let currentFontSize = parseInt(localStorage.getItem(STORAGE_KEY_FONT_SIZE)) || 11;
     let currentTheme = localStorage.getItem(STORAGE_KEY_THEME) || 'dark';
     let term = null;
     let socket = null;
