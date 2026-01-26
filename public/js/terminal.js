@@ -29,53 +29,53 @@
     const STORAGE_KEY_THEME = 'terminal-theme';
     const USAGE_UPDATE_INTERVAL = 5 * 60 * 1000; // 5分間隔
 
-    // テーマ定義
+    // テーマ定義 (Claude-inspired)
     const THEMES = {
       dark: {
-        background: '#2B2925',
-        foreground: '#E8E4DD',
-        cursor: '#E07A5F',
-        cursorAccent: '#2B2925',
-        selection: 'rgba(74, 69, 61, 0.7)',
-        black: '#1E1D1A',
-        red: '#E07A5F',
-        green: '#8AAD8A',
-        yellow: '#D4A574',
-        blue: '#9BB8D8',
-        magenta: '#C4A5D8',
-        cyan: '#9BC8C8',
-        white: '#E8E4DD',
-        brightBlack: '#6B6356',
-        brightRed: '#F09A84',
-        brightGreen: '#A5C9A5',
-        brightYellow: '#E5C99A',
-        brightBlue: '#B5CFEB',
-        brightMagenta: '#D8C2E8',
-        brightCyan: '#B5DEDE',
-        brightWhite: '#FAF9F6'
+        background: '#1a1915',
+        foreground: '#e8e4dc',
+        cursor: '#d97757',
+        cursorAccent: '#1a1915',
+        selection: 'rgba(217, 119, 87, 0.25)',
+        black: '#1a1915',
+        red: '#c75f5f',
+        green: '#7d9e7d',
+        yellow: '#d4a574',
+        blue: '#7a9ec4',
+        magenta: '#b59ac4',
+        cyan: '#7ab4b4',
+        white: '#e8e4dc',
+        brightBlack: '#736d5e',
+        brightRed: '#e07a7a',
+        brightGreen: '#95b895',
+        brightYellow: '#e5c99a',
+        brightBlue: '#95b8d8',
+        brightMagenta: '#c9b2d8',
+        brightCyan: '#95c8c8',
+        brightWhite: '#faf8f4'
       },
       light: {
-        background: '#FAF9F6',
-        foreground: '#3D3929',
-        cursor: '#E07A5F',
-        cursorAccent: '#FAF9F6',
-        selection: 'rgba(233, 213, 201, 0.7)',
-        black: '#3D3929',
-        red: '#D4726A',
-        green: '#5E8E5E',
-        yellow: '#B8860B',
-        blue: '#5B7FA3',
-        magenta: '#8B6DAE',
-        cyan: '#528B8B',
-        white: '#F5F1EB',
-        brightBlack: '#6B6356',
-        brightRed: '#E07A5F',
-        brightGreen: '#7AAD7A',
-        brightYellow: '#D4A574',
-        brightBlue: '#7B9EC4',
-        brightMagenta: '#A88BC4',
-        brightCyan: '#7BAFAF',
-        brightWhite: '#FFFCF7'
+        background: '#faf8f4',
+        foreground: '#2d2a24',
+        cursor: '#c4551d',
+        cursorAccent: '#faf8f4',
+        selection: 'rgba(196, 85, 29, 0.2)',
+        black: '#2d2a24',
+        red: '#b54545',
+        green: '#4a7a4a',
+        yellow: '#b8860b',
+        blue: '#4a7da8',
+        magenta: '#7a5d94',
+        cyan: '#3d7a7a',
+        white: '#f0ede6',
+        brightBlack: '#6b6558',
+        brightRed: '#d45555',
+        brightGreen: '#5d945d',
+        brightYellow: '#d4a574',
+        brightBlue: '#5d90bb',
+        brightMagenta: '#946db0',
+        brightCyan: '#5d9494',
+        brightWhite: '#ffffff'
       }
     };
 
@@ -1671,7 +1671,7 @@
       // メタテーマカラーを更新
       const metaThemeColor = document.querySelector('meta[name="theme-color"]');
       if (metaThemeColor) {
-        metaThemeColor.content = themeName === 'light' ? '#FAF9F6' : '#2B2925';
+        metaThemeColor.content = themeName === 'light' ? '#faf8f4' : '#1a1915';
       }
       
       // xtermテーマを更新
