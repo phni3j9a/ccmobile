@@ -968,7 +968,7 @@
     function closeUploadModal() {
       uploadModal.classList.add('hidden');
       uploadModalOverlay.classList.add('hidden');
-      term.focus();
+      // モバイルでキーボードが自動で出ないようterm.focus()は呼ばない
     }
 
     // モーダルをリセット
@@ -1432,7 +1432,7 @@
     function closeSettings() {
       settingsPanel.classList.add('hidden');
       settingsOverlay.classList.add('hidden');
-      term.focus();
+      // モバイルでキーボードが自動で出ないようterm.focus()は呼ばない
     }
 
     // セッションデタッチ（切断）

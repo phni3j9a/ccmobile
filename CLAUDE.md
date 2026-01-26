@@ -16,15 +16,15 @@ npm install
 PORT=3001 node server.js
 
 # PM2でのサーバー管理（本番運用）
-pm2 restart claude-code-web   # 再起動
-pm2 logs claude-code-web      # ログ確認
-pm2 status                    # 状態確認
+pm2 restart ccmobile   # 再起動
+pm2 logs ccmobile      # ログ確認
+pm2 status             # 状態確認
 ```
 
 ## 本番環境
 
-- **PM2で常時起動**: `claude-code-web` という名前で登録済み
-- 変更を反映するには `pm2 restart claude-code-web` が必要
+- **PM2で常時起動**: `ccmobile` という名前で登録済み
+- 変更を反映するには `pm2 restart ccmobile` が必要
 - テスト時は `PORT=3001 node server.js` で別ポートで起動し、本番環境に影響を与えずに検証できる
 
 ## アーキテクチャ
