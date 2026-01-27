@@ -1149,8 +1149,16 @@ body.offline #terminal-container {
 /* ===========================================
    xterm.js Customization
    =========================================== */
+.xterm,
+.xterm-screen,
+.xterm-viewport {
+  padding: 0 !important;
+  margin: 0 !important;
+  background-color: var(--bg-primary) !important;
+}
+
 .xterm {
-  padding: 4px;
+  padding: 4px !important;
 }
 
 .xterm-viewport {

@@ -9,6 +9,17 @@ const helmet = require('helmet');
 const multer = require('multer');
 const config = require('./config');
 
+// ===========================================
+// 未処理例外ハンドラー（クラッシュ防止）
+// ===========================================
+process.on('uncaughtException', (err) => {
+  console.error('未処理の例外（プロセス継続）:', err.message);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('未処理のPromise拒否:', reason);
+});
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -541,6 +552,14 @@ async function ensureValidToken(oauth) {
 
 // Claude Code使用量取得
 app.get('/api/usage/claude', async (req, res) => {
+  // 2026-01-27: Anthropicが OAuth usage APIを無効化したため、この機能は利用不可
+  return res.json({
+    success: false,
+    error: 'Usage APIは現在Anthropicにより無効化されています',
+    disabled: true
+  });
+
+  /* 以下は無効化（Anthropic OAuth API復活時に再有効化）
   try {
     const fs = require('fs');
     const path = require('path');
@@ -619,18 +638,23 @@ app.get('/api/usage/claude', async (req, res) => {
     });
     
     apiReq.on('error', (e) => {
-      res.json({ success: false, error: e.message });
+      if (!res.headersSent) {
+        res.json({ success: false, error: e.message });
+      }
     });
-    
+
     apiReq.setTimeout(5000, () => {
       apiReq.destroy();
-      res.json({ success: false, error: 'タイムアウト' });
+      if (!res.headersSent) {
+        res.json({ success: false, error: 'タイムアウト' });
+      }
     });
     
     apiReq.end();
   } catch (e) {
     res.json({ success: false, error: e.message });
   }
+  無効化ここまで */
 });
 
 // ===========================================

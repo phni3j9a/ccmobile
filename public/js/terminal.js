@@ -208,6 +208,7 @@
     term.open(terminalElement);
     log('ターミナルDOM追加完了');
 
+
     // Socket.io接続（再接続設定最適化）
     socket = io({
       reconnection: true,
