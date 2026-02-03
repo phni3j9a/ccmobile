@@ -706,18 +706,30 @@
     });
 
     // 仮想キーボード対応
+    function updateKeyboardHeight() {
+      if (!window.visualViewport) return;
+
+      const keyboardHeight = window.innerHeight - window.visualViewport.height;
+      document.body.style.setProperty('--keyboard-height', keyboardHeight + 'px');
+
+      if (keyboardHeight > 100) {
+        document.body.classList.add('keyboard-visible');
+      } else {
+        document.body.classList.remove('keyboard-visible');
+      }
+
+      setTimeout(fit, 50);
+    }
+
     if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', () => {
-        const keyboardHeight = window.innerHeight - window.visualViewport.height;
-        document.body.style.setProperty('--keyboard-height', keyboardHeight + 'px');
+      window.visualViewport.addEventListener('resize', updateKeyboardHeight);
 
-        if (keyboardHeight > 100) {
-          document.body.classList.add('keyboard-visible');
-        } else {
-          document.body.classList.remove('keyboard-visible');
+      // ビューポートスクロール防止（iOS対策）
+      // 大きくスクロールした場合のみリセット（キーボード表示時の微調整は許容）
+      window.visualViewport.addEventListener('scroll', () => {
+        if (window.visualViewport.offsetTop > 50) {
+          window.scrollTo(0, 0);
         }
-
-        setTimeout(fit, 50);
       });
     }
 
@@ -2268,6 +2280,21 @@
       // ペースト時に高さ調整
       chatInput.addEventListener('paste', () => {
         setTimeout(updateChatInputHeight, 0);
+      });
+
+      // フォーカス時のキーボード検出とスクロール防止
+      chatInput.addEventListener('focus', () => {
+        // キーボード表示を複数回チェック（タイミングによって検出できないことがあるため）
+        const checkKeyboard = () => {
+          updateKeyboardHeight();
+          const scrollTop = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop;
+          if (scrollTop > 50) {
+            window.scrollTo(0, 0);
+          }
+        };
+        setTimeout(checkKeyboard, 100);
+        setTimeout(checkKeyboard, 300);
+        setTimeout(checkKeyboard, 500);
       });
     }
 
