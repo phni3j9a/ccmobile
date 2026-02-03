@@ -1712,7 +1712,7 @@ button span + .icon {
 }
 
 /* ===========================================
-   Chat Input Bar (for Coding Agents)
+   Chat Input Bar (Always Visible)
    =========================================== */
 #chat-input-bar {
   display: none;
@@ -1728,22 +1728,14 @@ button span + .icon {
     border-top: 1px solid var(--border-color);
     padding: 4px var(--spacing-sm);
     z-index: 49;
-    display: none;
+    display: flex;
     gap: 4px;
     align-items: flex-end;
-  }
-
-  #chat-input-bar:not(.hidden) {
-    display: flex;
   }
 
   /* Chat input visible: move toolbar up */
   body.chat-input-visible #special-keys-toolbar {
     bottom: calc(84px + var(--chat-input-height, 45px));
-  }
-
-  body.chat-input-visible #chat-input-bar {
-    bottom: 84px;
   }
 
   #chat-input {

@@ -96,8 +96,7 @@
     let scrollTouchStartY = 0;
     let scrollLastY = 0;
     let scrollTouchIdentifier = null;
-    let chatInputVisible = false;
-    let chatInputManualOverride = false; // 手動トグル状態
+    let chatInputVisible = true; // 常時表示
 
 
     let currentFontSize = parseInt(localStorage.getItem(STORAGE_KEY_FONT_SIZE)) || 10;
@@ -1268,65 +1267,24 @@
       }
     }
 
-    // ペーストボタン: キーボード状態維持 + タップ/スワイプ判定 + 長押しでチャット入力トグル
+    // ペーストボタン: キーボード状態維持 + タップ/スワイプ判定
     let pasteBtnWasFocused = false;
     let pasteBtnStartX = 0;
     let pasteBtnStartY = 0;
-    let pasteBtnLongPressTimer = null;
-    let pasteBtnLongPressed = false;
-    const LONG_PRESS_DURATION = 500; // 500ms長押しでトグル
 
     pasteBtn.addEventListener('touchstart', (e) => {
       pasteBtnWasFocused = document.activeElement === term.textarea;
       pasteBtnStartX = e.touches[0].clientX;
       pasteBtnStartY = e.touches[0].clientY;
-      pasteBtnLongPressed = false;
-
-      // 長押しタイマー開始
-      pasteBtnLongPressTimer = setTimeout(() => {
-        pasteBtnLongPressed = true;
-        toggleChatInputManual();
-      }, LONG_PRESS_DURATION);
-    }, { passive: true });
-
-    pasteBtn.addEventListener('touchmove', (e) => {
-      // 移動したら長押しキャンセル
-      if (pasteBtnLongPressTimer) {
-        const deltaX = Math.abs(e.touches[0].clientX - pasteBtnStartX);
-        const deltaY = Math.abs(e.touches[0].clientY - pasteBtnStartY);
-        if (deltaX > 10 || deltaY > 10) {
-          clearTimeout(pasteBtnLongPressTimer);
-          pasteBtnLongPressTimer = null;
-        }
-      }
     }, { passive: true });
 
     pasteBtn.addEventListener('touchend', (e) => {
-      // 長押しタイマーキャンセル
-      if (pasteBtnLongPressTimer) {
-        clearTimeout(pasteBtnLongPressTimer);
-        pasteBtnLongPressTimer = null;
-      }
-
-      // 長押し処理済みならスキップ
-      if (pasteBtnLongPressed) {
-        e.preventDefault();
-        return;
-      }
-
       const deltaX = Math.abs(e.changedTouches[0].clientX - pasteBtnStartX);
       const deltaY = Math.abs(e.changedTouches[0].clientY - pasteBtnStartY);
       if (deltaX > 10 || deltaY > 10) return; // スワイプは無視
 
       e.preventDefault();
       pasteFromClipboard(pasteBtnWasFocused);
-    });
-
-    pasteBtn.addEventListener('touchcancel', () => {
-      if (pasteBtnLongPressTimer) {
-        clearTimeout(pasteBtnLongPressTimer);
-        pasteBtnLongPressTimer = null;
-      }
     });
 
     pasteBtn.addEventListener('click', (e) => {
@@ -2249,47 +2207,13 @@
     const chatInput = document.getElementById('chat-input');
     const chatSendBtn = document.getElementById('chat-send-btn');
 
-    // チャット入力バーの表示/非表示を更新
-    function updateChatInputVisibility() {
-      const shouldShow = chatInputManualOverride || isAlternateBufferActive();
-
-      if (shouldShow && !chatInputVisible) {
-        showChatInput();
-      } else if (!shouldShow && chatInputVisible) {
-        hideChatInput();
-      }
-    }
-
-    // チャット入力バーを表示
-    function showChatInput() {
+    // チャット入力バーを初期化（常時表示）
+    function initChatInput() {
       if (!chatInputBar) return;
-      chatInputVisible = true;
       chatInputBar.classList.remove('hidden');
       document.body.classList.add('chat-input-visible');
       updateChatInputHeight();
-      setTimeout(fit, 50);
-      log('チャット入力バー表示');
-    }
-
-    // チャット入力バーを非表示
-    function hideChatInput() {
-      if (!chatInputBar) return;
-      chatInputVisible = false;
-      chatInputBar.classList.add('hidden');
-      document.body.classList.remove('chat-input-visible');
-      setTimeout(fit, 50);
-      log('チャット入力バー非表示');
-    }
-
-    // 手動トグル
-    function toggleChatInputManual() {
-      chatInputManualOverride = !chatInputManualOverride;
-      updateChatInputVisibility();
-      if (chatInputManualOverride) {
-        showToast('チャット入力ON', 'info', 1500);
-      } else {
-        showToast('チャット入力OFF', 'info', 1500);
-      }
+      log('チャット入力バー初期化（常時表示）');
     }
 
     // テキストエリアの高さを自動調整
@@ -2307,9 +2231,7 @@
       // CSS変数を更新 (padding 4px*2 + border 1px = 9px)
       const barHeight = newHeight + 9;
       document.body.style.setProperty('--chat-input-height', barHeight + 'px');
-
-      // ターミナルをリフィット
-      setTimeout(fit, 10);
+      // 注: fit()は呼ばない（DA2レスポンス問題回避）
     }
 
     // チャット入力を送信
@@ -2375,18 +2297,8 @@
       });
     }
 
-    // alternateバッファの変化を監視（定期チェック）
-    let lastAlternateBufferState = false;
-    setInterval(() => {
-      const currentState = isAlternateBufferActive();
-      if (currentState !== lastAlternateBufferState) {
-        lastAlternateBufferState = currentState;
-        // 手動オーバーライドがない場合のみ自動切り替え
-        if (!chatInputManualOverride) {
-          updateChatInputVisibility();
-        }
-      }
-    }, 500);
+    // チャット入力バーを初期化（常時表示）
+    initChatInput();
 
     // 初期フィット
     setTimeout(fit, 100);

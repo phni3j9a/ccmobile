@@ -705,9 +705,12 @@ io.on('connection', (socket) => {
       currentSessionName = fullName;
       const thisPtyId = ++ptyId; // このPTYのID
 
-      // PTYからの出力をクライアントに送信
+      // PTYからの出力をクライアントに送信（DA1/DA2レスポンスを除去）
       ptyProcess.onData((data) => {
-        socket.emit('output', data);
+        const filtered = data.replace(/\x1b\[[\?>]?[0-9;]*c/g, '');
+        if (filtered) {
+          socket.emit('output', filtered);
+        }
       });
 
       // PTYプロセス終了時（デタッチ時も発火）
@@ -782,9 +785,12 @@ io.on('connection', (socket) => {
       currentSessionName = fullName;
       const thisPtyId = ++ptyId; // このPTYのID
 
-      // PTYからの出力をクライアントに送信
+      // PTYからの出力をクライアントに送信（DA1/DA2レスポンスを除去）
       ptyProcess.onData((data) => {
-        socket.emit('output', data);
+        const filtered = data.replace(/\x1b\[[\?>]?[0-9;]*c/g, '');
+        if (filtered) {
+          socket.emit('output', filtered);
+        }
       });
 
       // PTYプロセス終了時
