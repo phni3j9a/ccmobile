@@ -552,32 +552,33 @@ async function ensureValidToken(oauth) {
 
 // Claude Code使用量取得
 app.get('/api/usage/claude', async (req, res) => {
-  // 2026-01-27: Anthropicが OAuth usage APIを無効化したため、この機能は利用不可
-  return res.json({
-    success: false,
-    error: 'Usage APIは現在Anthropicにより無効化されています',
-    disabled: true
-  });
-
-  /* 以下は無効化（Anthropic OAuth API復活時に再有効化）
   try {
     const fs = require('fs');
     const path = require('path');
     const https = require('https');
-    
+
     const credentialsPath = path.join(process.env.HOME, '.claude', '.credentials.json');
-    
+
     if (!fs.existsSync(credentialsPath)) {
       return res.json({ success: false, error: 'Claude Code認証情報が見つかりません' });
     }
-    
+
     const credentials = JSON.parse(fs.readFileSync(credentialsPath, 'utf-8'));
     const oauth = credentials.claudeAiOauth;
-    
+
     if (!oauth || !oauth.accessToken) {
       return res.json({ success: false, error: 'アクセストークンが見つかりません' });
     }
-    
+
+    // user:profileスコープが必要
+    if (!oauth.scopes || !oauth.scopes.includes('user:profile')) {
+      return res.json({
+        success: false,
+        error: 'user:profileスコープがありません。claude loginで再認証してください',
+        requireReauth: true
+      });
+    }
+
     // トークンを検証し、必要に応じてリフレッシュ
     const tokenResult = await ensureValidToken(oauth);
     if (!tokenResult.valid) {
@@ -595,7 +596,9 @@ app.get('/api/usage/claude', async (req, res) => {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
-        'anthropic-beta': 'oauth-2025-04-20'
+        'anthropic-beta': 'oauth-2025-04-20',
+        'User-Agent': 'claude-code/2.0.32',
+        'Accept': 'application/json'
       }
     };
     
@@ -654,7 +657,6 @@ app.get('/api/usage/claude', async (req, res) => {
   } catch (e) {
     res.json({ success: false, error: e.message });
   }
-  無効化ここまで */
 });
 
 // ===========================================

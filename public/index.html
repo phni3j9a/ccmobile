@@ -54,6 +54,14 @@
     <div id="terminal"></div>
   </div>
 
+  <!-- チャット入力バー（コーディングエージェント用） -->
+  <div id="chat-input-bar" class="hidden" role="region" aria-label="チャット入力">
+    <textarea id="chat-input" rows="1" placeholder="メッセージを入力..." aria-label="チャットメッセージ"></textarea>
+    <button id="chat-send-btn" aria-label="送信">
+      <i data-lucide="send" class="icon"></i>
+    </button>
+  </div>
+
   <!-- 特殊キーツールバー -->
   <div id="special-keys-toolbar" role="toolbar" aria-label="特殊キー入力">
     <button class="key-btn scroll-btn" id="scroll-mode-btn" title="スクロールモード (Ctrl+b [)" aria-label="スクロールモード切り替え" aria-pressed="false">
@@ -189,6 +197,19 @@
     </div>
   </div>
   <div id="paste-modal-overlay" class="hidden" aria-hidden="true"></div>
+
+  <!-- セッションタブコンテキストメニュー -->
+  <div id="tab-context-menu" class="context-menu hidden" role="menu" aria-label="セッション操作">
+    <button class="context-menu-item" id="tab-menu-rename" role="menuitem">
+      <i data-lucide="pencil" class="icon"></i>
+      <span>名前を変更</span>
+    </button>
+    <button class="context-menu-item danger" id="tab-menu-delete" role="menuitem">
+      <i data-lucide="trash-2" class="icon"></i>
+      <span>削除</span>
+    </button>
+  </div>
+  <div id="tab-context-overlay" class="context-overlay hidden" aria-hidden="true"></div>
 
   <!-- 画像アップロードモーダル -->
   <div id="upload-modal" class="modal hidden" role="dialog" aria-labelledby="upload-modal-title" aria-modal="true">

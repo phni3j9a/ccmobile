@@ -96,6 +96,8 @@
     let scrollTouchStartY = 0;
     let scrollLastY = 0;
     let scrollTouchIdentifier = null;
+    let chatInputVisible = false;
+    let chatInputManualOverride = false; // 手動トグル状態
 
 
     let currentFontSize = parseInt(localStorage.getItem(STORAGE_KEY_FONT_SIZE)) || 10;
@@ -1266,24 +1268,65 @@
       }
     }
 
-    // ペーストボタン: キーボード状態維持 + タップ/スワイプ判定
+    // ペーストボタン: キーボード状態維持 + タップ/スワイプ判定 + 長押しでチャット入力トグル
     let pasteBtnWasFocused = false;
     let pasteBtnStartX = 0;
     let pasteBtnStartY = 0;
+    let pasteBtnLongPressTimer = null;
+    let pasteBtnLongPressed = false;
+    const LONG_PRESS_DURATION = 500; // 500ms長押しでトグル
 
     pasteBtn.addEventListener('touchstart', (e) => {
       pasteBtnWasFocused = document.activeElement === term.textarea;
       pasteBtnStartX = e.touches[0].clientX;
       pasteBtnStartY = e.touches[0].clientY;
+      pasteBtnLongPressed = false;
+
+      // 長押しタイマー開始
+      pasteBtnLongPressTimer = setTimeout(() => {
+        pasteBtnLongPressed = true;
+        toggleChatInputManual();
+      }, LONG_PRESS_DURATION);
+    }, { passive: true });
+
+    pasteBtn.addEventListener('touchmove', (e) => {
+      // 移動したら長押しキャンセル
+      if (pasteBtnLongPressTimer) {
+        const deltaX = Math.abs(e.touches[0].clientX - pasteBtnStartX);
+        const deltaY = Math.abs(e.touches[0].clientY - pasteBtnStartY);
+        if (deltaX > 10 || deltaY > 10) {
+          clearTimeout(pasteBtnLongPressTimer);
+          pasteBtnLongPressTimer = null;
+        }
+      }
     }, { passive: true });
 
     pasteBtn.addEventListener('touchend', (e) => {
+      // 長押しタイマーキャンセル
+      if (pasteBtnLongPressTimer) {
+        clearTimeout(pasteBtnLongPressTimer);
+        pasteBtnLongPressTimer = null;
+      }
+
+      // 長押し処理済みならスキップ
+      if (pasteBtnLongPressed) {
+        e.preventDefault();
+        return;
+      }
+
       const deltaX = Math.abs(e.changedTouches[0].clientX - pasteBtnStartX);
       const deltaY = Math.abs(e.changedTouches[0].clientY - pasteBtnStartY);
       if (deltaX > 10 || deltaY > 10) return; // スワイプは無視
 
       e.preventDefault();
       pasteFromClipboard(pasteBtnWasFocused);
+    });
+
+    pasteBtn.addEventListener('touchcancel', () => {
+      if (pasteBtnLongPressTimer) {
+        clearTimeout(pasteBtnLongPressTimer);
+        pasteBtnLongPressTimer = null;
+      }
     });
 
     pasteBtn.addEventListener('click', (e) => {
@@ -1868,13 +1911,269 @@
     // セッションタブバーのイベントハンドラ
     // ===========================================
 
-    // タブバーのクリック/タップイベント
+    // コンテキストメニュー要素
+    const tabContextMenu = document.getElementById('tab-context-menu');
+    const tabContextOverlay = document.getElementById('tab-context-overlay');
+    const tabMenuRename = document.getElementById('tab-menu-rename');
+    const tabMenuDelete = document.getElementById('tab-menu-delete');
+
+    // 長押し検出用の変数
+    let tabLongPressTimer = null;
+    let tabLongPressTarget = null;
+    let tabLongPressSessionName = null;
+    let tabTouchStartX = 0;
+    let tabTouchStartY = 0;
+    const TAB_LONG_PRESS_DURATION = 500; // 500ms
+
+    // コンテキストメニューを表示
+    function showTabContextMenu(sessionName, x, y) {
+      if (!tabContextMenu || !tabContextOverlay) return;
+
+      tabLongPressSessionName = sessionName;
+
+      // メニューを表示
+      tabContextMenu.classList.remove('hidden');
+      tabContextOverlay.classList.remove('hidden');
+
+      // 位置を調整（画面からはみ出さないように）
+      const menuRect = tabContextMenu.getBoundingClientRect();
+      const screenWidth = window.innerWidth;
+      const screenHeight = window.innerHeight;
+
+      let menuX = x;
+      let menuY = y;
+
+      // 右端からはみ出す場合
+      if (menuX + menuRect.width > screenWidth - 10) {
+        menuX = screenWidth - menuRect.width - 10;
+      }
+      // 左端からはみ出す場合
+      if (menuX < 10) {
+        menuX = 10;
+      }
+      // 下端からはみ出す場合（上に表示）
+      if (menuY + menuRect.height > screenHeight - 10) {
+        menuY = y - menuRect.height - 10;
+      }
+
+      tabContextMenu.style.left = menuX + 'px';
+      tabContextMenu.style.top = menuY + 'px';
+
+      // Lucide Iconsを再初期化（メニュー内のアイコン用）
+      if (typeof lucide !== 'undefined' && lucide.createIcons) {
+        lucide.createIcons();
+      }
+
+      log('コンテキストメニュー表示: ' + sessionName);
+    }
+
+    // コンテキストメニューを非表示
+    function hideTabContextMenu() {
+      if (!tabContextMenu || !tabContextOverlay) return;
+
+      tabContextMenu.classList.add('hidden');
+      tabContextOverlay.classList.add('hidden');
+      tabLongPressSessionName = null;
+    }
+
+    // タブからセッションを削除（タブバー用）
+    async function deleteSessionFromTab(sessionName) {
+      if (!confirm('このセッションを削除しますか？')) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/sessions/${encodeURIComponent(sessionName)}`, {
+          method: 'DELETE'
+        });
+
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}));
+          throw new Error(data.error || `HTTP ${response.status}`);
+        }
+
+        log('セッション削除: ' + sessionName);
+        showToast('セッションを削除しました', 'success');
+
+        // 削除したのが現在のセッションの場合
+        if (sessionName === currentSessionName) {
+          // セッションリストを更新
+          const sessions = await fetchSessions();
+          sessionListCache = sessions;
+
+          if (sessions.length > 0) {
+            // 他のセッションがあれば切り替え
+            switchSession(sessions[0].name);
+          } else {
+            // セッションがなければセッション一覧画面へ
+            isAttached = false;
+            currentSessionName = null;
+            renderSessionList(sessions);
+            showSessionManager();
+          }
+        } else {
+          // 別のセッションを削除した場合はタブを更新するだけ
+          await updateSessionTabs();
+        }
+      } catch (e) {
+        log('セッション削除エラー: ' + e.message);
+        showToast('セッションの削除に失敗しました: ' + e.message, 'error');
+      }
+    }
+
+    // タブからセッション名を変更（タブバー用）
+    async function renameSessionFromTab(sessionName) {
+      // セッション一覧から表示名を取得
+      const session = sessionListCache.find(s => s.name === sessionName);
+      const currentDisplayName = session ? session.displayName : sessionName.replace(/^ccw_/, '');
+      const newName = prompt('新しいセッション名を入力:\n（英数字、ハイフン、アンダースコア、ドットのみ）', currentDisplayName);
+
+      if (!newName || newName.trim() === '' || newName.trim() === currentDisplayName) {
+        return;
+      }
+
+      // クライアント側でも簡易バリデーション
+      const trimmedName = newName.trim();
+      if (!/^[a-zA-Z0-9_\-\.]{1,50}$/.test(trimmedName)) {
+        showToast('無効なセッション名です。英数字、ハイフン、アンダースコア、ドットのみ使用可能（1-50文字）', 'error', 5000);
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/sessions/${encodeURIComponent(sessionName)}/rename`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ newName: trimmedName })
+        });
+
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(data.error || `HTTP ${response.status}`);
+        }
+
+        log('セッション名変更: ' + sessionName + ' -> ' + trimmedName);
+        showToast('セッション名を変更しました', 'success');
+
+        // タブを更新
+        await updateSessionTabs();
+
+        // 現在のセッションならステータスバーも更新
+        if (sessionName === currentSessionName) {
+          setStatus('connected', trimmedName);
+        }
+      } catch (e) {
+        log('セッション名変更エラー: ' + e.message);
+        showToast('名前の変更に失敗しました: ' + e.message, 'error');
+      }
+    }
+
+    // タブバーのタッチイベント（長押し検出）
     if (sessionTabsContainer) {
+      sessionTabsContainer.addEventListener('touchstart', (e) => {
+        const tab = e.target.closest('.session-tab');
+        if (!tab) return;
+
+        tabTouchStartX = e.touches[0].clientX;
+        tabTouchStartY = e.touches[0].clientY;
+        tabLongPressTarget = tab;
+
+        // 長押しタイマー開始
+        tabLongPressTimer = setTimeout(() => {
+          // 長押し発動
+          const sessionName = tab.dataset.session;
+          if (sessionName) {
+            // ハプティックフィードバック（対応デバイスのみ）
+            if (navigator.vibrate) {
+              navigator.vibrate(50);
+            }
+            // 視覚フィードバック
+            tab.classList.add('long-press-active');
+            setTimeout(() => tab.classList.remove('long-press-active'), 150);
+
+            // コンテキストメニューを表示
+            showTabContextMenu(sessionName, tabTouchStartX, tabTouchStartY - 60);
+          }
+          tabLongPressTimer = null;
+        }, TAB_LONG_PRESS_DURATION);
+      }, { passive: true });
+
+      sessionTabsContainer.addEventListener('touchmove', (e) => {
+        // 移動したら長押しキャンセル
+        if (tabLongPressTimer) {
+          const deltaX = Math.abs(e.touches[0].clientX - tabTouchStartX);
+          const deltaY = Math.abs(e.touches[0].clientY - tabTouchStartY);
+          if (deltaX > 10 || deltaY > 10) {
+            clearTimeout(tabLongPressTimer);
+            tabLongPressTimer = null;
+            tabLongPressTarget = null;
+          }
+        }
+      }, { passive: true });
+
+      sessionTabsContainer.addEventListener('touchend', (e) => {
+        // 長押しタイマーキャンセル
+        if (tabLongPressTimer) {
+          clearTimeout(tabLongPressTimer);
+          tabLongPressTimer = null;
+
+          // 通常のタップ処理（セッション切り替え）
+          const tab = e.target.closest('.session-tab');
+          if (tab) {
+            const deltaX = Math.abs(e.changedTouches[0].clientX - tabTouchStartX);
+            const deltaY = Math.abs(e.changedTouches[0].clientY - tabTouchStartY);
+            // タップ判定（移動が少ない場合のみ）
+            if (deltaX < 10 && deltaY < 10) {
+              const sessionName = tab.dataset.session;
+              switchSession(sessionName);
+            }
+          }
+        }
+        tabLongPressTarget = null;
+      }, { passive: true });
+
+      sessionTabsContainer.addEventListener('touchcancel', () => {
+        if (tabLongPressTimer) {
+          clearTimeout(tabLongPressTimer);
+          tabLongPressTimer = null;
+        }
+        tabLongPressTarget = null;
+      }, { passive: true });
+
+      // デスクトップ向けクリックハンドラ
       sessionTabsContainer.addEventListener('click', (e) => {
+        // タッチデバイスではtouchendで処理済みなのでスキップ
+        if (e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) return;
+
         const tab = e.target.closest('.session-tab');
         if (tab) {
           const sessionName = tab.dataset.session;
           switchSession(sessionName);
+        }
+      });
+    }
+
+    // コンテキストメニューのイベントハンドラ
+    if (tabContextOverlay) {
+      tabContextOverlay.addEventListener('click', hideTabContextMenu);
+    }
+
+    if (tabMenuRename) {
+      tabMenuRename.addEventListener('click', () => {
+        const sessionName = tabLongPressSessionName;
+        hideTabContextMenu();
+        if (sessionName) {
+          renameSessionFromTab(sessionName);
+        }
+      });
+    }
+
+    if (tabMenuDelete) {
+      tabMenuDelete.addEventListener('click', () => {
+        const sessionName = tabLongPressSessionName;
+        hideTabContextMenu();
+        if (sessionName) {
+          deleteSessionFromTab(sessionName);
         }
       });
     }
@@ -1941,6 +2240,153 @@
         return;
       }
     }, { passive: true });
+
+    // ===========================================
+    // チャット入力バー機能
+    // ===========================================
+
+    const chatInputBar = document.getElementById('chat-input-bar');
+    const chatInput = document.getElementById('chat-input');
+    const chatSendBtn = document.getElementById('chat-send-btn');
+
+    // チャット入力バーの表示/非表示を更新
+    function updateChatInputVisibility() {
+      const shouldShow = chatInputManualOverride || isAlternateBufferActive();
+
+      if (shouldShow && !chatInputVisible) {
+        showChatInput();
+      } else if (!shouldShow && chatInputVisible) {
+        hideChatInput();
+      }
+    }
+
+    // チャット入力バーを表示
+    function showChatInput() {
+      if (!chatInputBar) return;
+      chatInputVisible = true;
+      chatInputBar.classList.remove('hidden');
+      document.body.classList.add('chat-input-visible');
+      updateChatInputHeight();
+      setTimeout(fit, 50);
+      log('チャット入力バー表示');
+    }
+
+    // チャット入力バーを非表示
+    function hideChatInput() {
+      if (!chatInputBar) return;
+      chatInputVisible = false;
+      chatInputBar.classList.add('hidden');
+      document.body.classList.remove('chat-input-visible');
+      setTimeout(fit, 50);
+      log('チャット入力バー非表示');
+    }
+
+    // 手動トグル
+    function toggleChatInputManual() {
+      chatInputManualOverride = !chatInputManualOverride;
+      updateChatInputVisibility();
+      if (chatInputManualOverride) {
+        showToast('チャット入力ON', 'info', 1500);
+      } else {
+        showToast('チャット入力OFF', 'info', 1500);
+      }
+    }
+
+    // テキストエリアの高さを自動調整
+    function updateChatInputHeight() {
+      if (!chatInput) return;
+
+      // 一旦高さをリセット
+      chatInput.style.height = 'auto';
+
+      // コンテンツに合わせて高さを設定（最大100px）
+      const scrollHeight = chatInput.scrollHeight;
+      const newHeight = Math.min(scrollHeight, 100);
+      chatInput.style.height = newHeight + 'px';
+
+      // CSS変数を更新 (padding 4px*2 + border 1px = 9px)
+      const barHeight = newHeight + 9;
+      document.body.style.setProperty('--chat-input-height', barHeight + 'px');
+
+      // ターミナルをリフィット
+      setTimeout(fit, 10);
+    }
+
+    // チャット入力を送信
+    function sendChatInput() {
+      if (!chatInput) return;
+      const text = chatInput.value;
+      if (!text.trim()) return;
+
+      if (socket && socket.connected) {
+        // テキストを送信
+        socket.emit('input', text);
+        // 少し遅延してEnterキーを送信（Claude Code等の入力バッファ対策）
+        setTimeout(() => {
+          socket.emit('input', '\r');
+        }, 50);
+        log('チャット入力送信: ' + text.substring(0, 50) + (text.length > 50 ? '...' : ''));
+      }
+
+      // 入力欄をクリア
+      chatInput.value = '';
+      updateChatInputHeight();
+
+      // フォーカスを入力欄に維持
+      chatInput.focus();
+    }
+
+    // チャット入力イベントハンドラ
+    if (chatInput) {
+      // 入力時に高さ調整
+      chatInput.addEventListener('input', () => {
+        updateChatInputHeight();
+      });
+
+      // ペースト時に高さ調整
+      chatInput.addEventListener('paste', () => {
+        setTimeout(updateChatInputHeight, 0);
+      });
+    }
+
+    // 送信ボタン
+    if (chatSendBtn) {
+      let chatSendBtnStartX = 0;
+      let chatSendBtnStartY = 0;
+
+      chatSendBtn.addEventListener('touchstart', (e) => {
+        chatSendBtnStartX = e.touches[0].clientX;
+        chatSendBtnStartY = e.touches[0].clientY;
+      }, { passive: true });
+
+      chatSendBtn.addEventListener('touchend', (e) => {
+        const deltaX = Math.abs(e.changedTouches[0].clientX - chatSendBtnStartX);
+        const deltaY = Math.abs(e.changedTouches[0].clientY - chatSendBtnStartY);
+        if (deltaX > 10 || deltaY > 10) return; // スワイプは無視
+
+        e.preventDefault();
+        sendChatInput();
+      });
+
+      chatSendBtn.addEventListener('click', (e) => {
+        if (e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) return;
+        e.preventDefault();
+        sendChatInput();
+      });
+    }
+
+    // alternateバッファの変化を監視（定期チェック）
+    let lastAlternateBufferState = false;
+    setInterval(() => {
+      const currentState = isAlternateBufferActive();
+      if (currentState !== lastAlternateBufferState) {
+        lastAlternateBufferState = currentState;
+        // 手動オーバーライドがない場合のみ自動切り替え
+        if (!chatInputManualOverride) {
+          updateChatInputVisibility();
+        }
+      }
+    }, 500);
 
     // 初期フィット
     setTimeout(fit, 100);

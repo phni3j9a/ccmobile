@@ -959,7 +959,7 @@ html, body {
   /* Terminal Container adjustment */
   #terminal-container {
     top: 0;
-    bottom: 128px;
+    bottom: 122px;
     padding: 2px;
   }
 
@@ -971,12 +971,12 @@ html, body {
     bottom: 84px;
     left: 0;
     right: 0;
-    height: var(--toolbar-height);
+    height: 38px;
     background: var(--bg-secondary);
     border-top: 1px solid var(--border-color);
     align-items: center;
-    padding: 0 var(--spacing-sm);
-    gap: 6px;
+    padding: 0 4px;
+    gap: 4px;
     overflow-x: auto;
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
@@ -995,7 +995,7 @@ html, body {
     border-top: 1px solid var(--border-color);
     align-items: center;
     padding: 0 var(--spacing-sm);
-    gap: 6px;
+    gap: 4px;
     z-index: 50;
   }
 
@@ -1054,6 +1054,9 @@ html, body {
     cursor: pointer;
     touch-action: manipulation;
     transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .tab-add-btn:active {
@@ -1067,18 +1070,22 @@ html, body {
 
   .key-btn {
     flex-shrink: 0;
-    min-width: 44px;
-    height: 38px;
-    padding: 0 8px;
+    min-width: 36px;
+    height: 30px;
+    padding: 0 6px;
     background: var(--bg-primary);
     color: var(--fg-primary);
     border: 1px solid var(--border-color);
-    border-radius: var(--border-radius-md);
-    font-size: var(--font-size-sm);
+    border-radius: var(--border-radius-sm);
+    font-size: var(--font-size-xs);
     font-family: "SF Mono", Monaco, monospace;
     cursor: pointer;
     touch-action: manipulation;
     transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
   }
 
   .key-btn:active {
@@ -1088,7 +1095,7 @@ html, body {
 
   .key-btn.paste-btn,
   .key-btn.image-btn {
-    font-size: 16px;
+    font-size: 14px;
     font-family: inherit;
   }
 
@@ -1122,7 +1129,7 @@ html, body {
 
 /* Keyboard visible layout adjustments */
 body.keyboard-visible #terminal-container {
-  bottom: calc(var(--keyboard-height, 0px) + 128px);
+  bottom: calc(var(--keyboard-height, 0px) + 122px);
 }
 
 body.keyboard-visible #special-keys-toolbar {
@@ -1131,6 +1138,10 @@ body.keyboard-visible #special-keys-toolbar {
 
 body.keyboard-visible #session-tab-bar {
   bottom: calc(var(--keyboard-height, 0px) + 40px);
+}
+
+body.keyboard-visible #chat-input-bar {
+  bottom: calc(var(--keyboard-height, 0px) + 84px);
 }
 
 body.keyboard-visible #status-bar {
@@ -1579,14 +1590,14 @@ button span + .icon {
 
 /* ツールバーのアイコン */
 .key-btn .icon {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
 }
 
 /* 矢印ボタンのアイコン */
 .key-btn.arrow-btn .icon {
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
   stroke-width: 2.5;
 }
 
@@ -1698,4 +1709,174 @@ button span + .icon {
 /* 回転アニメーション（更新ボタン用） */
 .usage-refresh-btn.spinning .icon {
   animation: spin 0.6s ease-in-out infinite;
+}
+
+/* ===========================================
+   Chat Input Bar (for Coding Agents)
+   =========================================== */
+#chat-input-bar {
+  display: none;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  #chat-input-bar {
+    position: fixed;
+    bottom: 84px;
+    left: 0;
+    right: 0;
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border-color);
+    padding: 4px var(--spacing-sm);
+    z-index: 49;
+    display: none;
+    gap: 4px;
+    align-items: flex-end;
+  }
+
+  #chat-input-bar:not(.hidden) {
+    display: flex;
+  }
+
+  /* Chat input visible: move toolbar up */
+  body.chat-input-visible #special-keys-toolbar {
+    bottom: calc(84px + var(--chat-input-height, 45px));
+  }
+
+  body.chat-input-visible #chat-input-bar {
+    bottom: 84px;
+  }
+
+  #chat-input {
+    flex: 1;
+    min-height: 32px;
+    max-height: 100px;
+    padding: 6px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-md);
+    background: var(--bg-primary);
+    color: var(--fg-primary);
+    font-size: var(--font-size-sm);
+    font-family: inherit;
+    resize: none;
+    line-height: 1.4;
+    overflow-y: auto;
+    transition: border-color var(--transition-fast);
+  }
+
+  #chat-input::placeholder {
+    color: var(--fg-muted);
+  }
+
+  #chat-input:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+  }
+
+  #chat-send-btn {
+    flex-shrink: 0;
+    width: 38px;
+    height: 32px;
+    background: var(--accent-primary);
+    color: #fff;
+    border: none;
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: manipulation;
+    transition: all var(--transition-fast);
+  }
+
+  #chat-send-btn:active {
+    background: var(--accent-primary-hover);
+    transform: scale(0.95);
+  }
+
+  #chat-send-btn .icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* Session Tab Context Menu */
+  .context-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 1998;
+  }
+
+  .context-menu {
+    position: fixed;
+    background: var(--bg-secondary);
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-xl);
+    z-index: 1999;
+    min-width: 160px;
+    padding: var(--spacing-sm);
+    border: 1px solid var(--border-color-strong);
+  }
+
+  .context-menu-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: 12px var(--spacing-md);
+    background: transparent;
+    border: none;
+    border-radius: var(--border-radius-md);
+    color: var(--fg-primary);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    text-align: left;
+  }
+
+  .context-menu-item:active {
+    background: var(--bg-tertiary);
+    transform: scale(0.98);
+  }
+
+  .context-menu-item.danger {
+    color: var(--accent-error);
+  }
+
+  .context-menu-item.danger:active {
+    background: rgba(199, 95, 95, 0.15);
+  }
+
+  .context-menu-item .icon {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+
+  /* Long press visual feedback on tabs */
+  .session-tab.long-press-active {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+
+  /* Chat input visible: adjust terminal */
+  body.chat-input-visible #terminal-container {
+    bottom: calc(122px + var(--chat-input-height, 45px));
+  }
+
+  /* Keyboard visible + Chat input visible */
+  body.keyboard-visible.chat-input-visible #terminal-container {
+    bottom: calc(var(--keyboard-height, 0px) + 122px + var(--chat-input-height, 45px));
+  }
+
+  body.keyboard-visible.chat-input-visible #chat-input-bar {
+    bottom: calc(var(--keyboard-height, 0px) + 84px);
+  }
+
+  body.keyboard-visible.chat-input-visible #special-keys-toolbar {
+    bottom: calc(var(--keyboard-height, 0px) + 84px + var(--chat-input-height, 45px));
+  }
 }
