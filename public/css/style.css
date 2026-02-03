@@ -959,7 +959,7 @@ html, body {
   /* Terminal Container adjustment */
   #terminal-container {
     top: 0;
-    bottom: 122px;
+    bottom: 114px;
     padding: 2px;
   }
 
@@ -983,16 +983,15 @@ html, body {
     z-index: 50;
   }
 
-  /* Session Tab Bar (above toolbar) */
+  /* Session Tab Bar (above chat input) */
   #session-tab-bar {
     display: flex;
     position: fixed;
-    bottom: 78px;
+    bottom: calc(78px + var(--chat-input-height, 45px));
     left: 0;
     right: 0;
-    height: 44px;
+    height: 36px;
     background: var(--bg-primary);
-    border-top: 1px solid var(--border-color);
     align-items: center;
     padding: 0 var(--spacing-sm);
     gap: 4px;
@@ -1015,7 +1014,7 @@ html, body {
 
   .session-tab {
     flex-shrink: 0;
-    padding: 8px 14px;
+    padding: 6px 12px;
     background: var(--bg-secondary);
     color: var(--fg-secondary);
     border: 1px solid var(--border-color);
@@ -1043,8 +1042,8 @@ html, body {
 
   .tab-add-btn {
     flex-shrink: 0;
-    width: 36px;
-    height: 36px;
+    width: 30px;
+    height: 30px;
     background: var(--accent-primary);
     color: #fff;
     border: none;
@@ -1129,7 +1128,7 @@ html, body {
 
 /* Keyboard visible layout adjustments */
 body.keyboard-visible #terminal-container {
-  bottom: calc(var(--keyboard-height, 0px) + 122px);
+  bottom: calc(var(--keyboard-height, 0px) + 114px);
 }
 
 body.keyboard-visible #special-keys-toolbar {
@@ -1137,11 +1136,11 @@ body.keyboard-visible #special-keys-toolbar {
 }
 
 body.keyboard-visible #session-tab-bar {
-  bottom: calc(var(--keyboard-height, 0px) + 78px);
+  bottom: calc(var(--keyboard-height, 0px) + 78px + var(--chat-input-height, 45px));
 }
 
 body.keyboard-visible #chat-input-bar {
-  bottom: calc(var(--keyboard-height, 0px) + 122px);
+  bottom: calc(var(--keyboard-height, 0px) + 78px);
 }
 
 body.keyboard-visible #status-bar {
@@ -1721,7 +1720,7 @@ button span + .icon {
 @media (hover: none) and (pointer: coarse) {
   #chat-input-bar {
     position: fixed;
-    bottom: 122px;
+    bottom: 78px;
     left: 0;
     right: 0;
     background: var(--bg-secondary);
@@ -1731,11 +1730,6 @@ button span + .icon {
     display: flex;
     gap: 4px;
     align-items: flex-end;
-  }
-
-  /* Chat input visible: move tab bar up */
-  body.chat-input-visible #session-tab-bar {
-    bottom: calc(122px + var(--chat-input-height, 45px));
   }
 
   #chat-input {
@@ -1856,19 +1850,15 @@ button span + .icon {
 
   /* Chat input visible: adjust terminal */
   body.chat-input-visible #terminal-container {
-    bottom: calc(122px + var(--chat-input-height, 45px));
+    bottom: calc(114px + var(--chat-input-height, 45px));
   }
 
   /* Keyboard visible + Chat input visible */
   body.keyboard-visible.chat-input-visible #terminal-container {
-    bottom: calc(var(--keyboard-height, 0px) + 122px + var(--chat-input-height, 45px));
+    bottom: calc(var(--keyboard-height, 0px) + 114px + var(--chat-input-height, 45px));
   }
 
   body.keyboard-visible.chat-input-visible #chat-input-bar {
-    bottom: calc(var(--keyboard-height, 0px) + 122px);
-  }
-
-  body.keyboard-visible.chat-input-visible #session-tab-bar {
-    bottom: calc(var(--keyboard-height, 0px) + 122px + var(--chat-input-height, 45px));
+    bottom: calc(var(--keyboard-height, 0px) + 78px);
   }
 }
