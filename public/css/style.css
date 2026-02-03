@@ -963,12 +963,12 @@ html, body {
     padding: 2px;
   }
 
-  /* Special Keys Toolbar */
+  /* Special Keys Toolbar (above status bar) */
   #special-keys-toolbar {
     display: flex;
     flex-wrap: nowrap;
     position: fixed;
-    bottom: 84px;
+    bottom: 40px;
     left: 0;
     right: 0;
     height: 38px;
@@ -983,11 +983,11 @@ html, body {
     z-index: 50;
   }
 
-  /* Session Tab Bar */
+  /* Session Tab Bar (above toolbar) */
   #session-tab-bar {
     display: flex;
     position: fixed;
-    bottom: 40px;
+    bottom: 78px;
     left: 0;
     right: 0;
     height: 44px;
@@ -1133,15 +1133,15 @@ body.keyboard-visible #terminal-container {
 }
 
 body.keyboard-visible #special-keys-toolbar {
-  bottom: calc(var(--keyboard-height, 0px) + 84px);
-}
-
-body.keyboard-visible #session-tab-bar {
   bottom: calc(var(--keyboard-height, 0px) + 40px);
 }
 
+body.keyboard-visible #session-tab-bar {
+  bottom: calc(var(--keyboard-height, 0px) + 78px);
+}
+
 body.keyboard-visible #chat-input-bar {
-  bottom: calc(var(--keyboard-height, 0px) + 84px);
+  bottom: calc(var(--keyboard-height, 0px) + 122px);
 }
 
 body.keyboard-visible #status-bar {
@@ -1721,7 +1721,7 @@ button span + .icon {
 @media (hover: none) and (pointer: coarse) {
   #chat-input-bar {
     position: fixed;
-    bottom: 84px;
+    bottom: 122px;
     left: 0;
     right: 0;
     background: var(--bg-secondary);
@@ -1733,9 +1733,9 @@ button span + .icon {
     align-items: flex-end;
   }
 
-  /* Chat input visible: move toolbar up */
-  body.chat-input-visible #special-keys-toolbar {
-    bottom: calc(84px + var(--chat-input-height, 45px));
+  /* Chat input visible: move tab bar up */
+  body.chat-input-visible #session-tab-bar {
+    bottom: calc(122px + var(--chat-input-height, 45px));
   }
 
   #chat-input {
@@ -1865,10 +1865,10 @@ button span + .icon {
   }
 
   body.keyboard-visible.chat-input-visible #chat-input-bar {
-    bottom: calc(var(--keyboard-height, 0px) + 84px);
+    bottom: calc(var(--keyboard-height, 0px) + 122px);
   }
 
-  body.keyboard-visible.chat-input-visible #special-keys-toolbar {
-    bottom: calc(var(--keyboard-height, 0px) + 84px + var(--chat-input-height, 45px));
+  body.keyboard-visible.chat-input-visible #session-tab-bar {
+    bottom: calc(var(--keyboard-height, 0px) + 122px + var(--chat-input-height, 45px));
   }
 }
