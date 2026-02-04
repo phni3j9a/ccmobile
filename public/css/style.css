@@ -965,12 +965,12 @@ html, body {
     padding: 2px;
   }
 
-  /* Special Keys Toolbar (above status bar) */
+  /* Special Keys Toolbar (above chat input bar) */
   #special-keys-toolbar {
     display: flex;
     flex-wrap: nowrap;
     position: fixed;
-    bottom: 40px;
+    bottom: calc(40px + var(--chat-input-height, 45px));
     left: 0;
     right: 0;
     height: 38px;
@@ -1133,7 +1133,7 @@ body.keyboard-visible #terminal-container {
 }
 
 body.keyboard-visible #special-keys-toolbar {
-  bottom: calc(var(--keyboard-height, 0px) + 40px);
+  bottom: calc(var(--keyboard-height, 0px) + 40px + var(--chat-input-height, 45px));
 }
 
 body.keyboard-visible #session-tab-bar {
@@ -1141,7 +1141,7 @@ body.keyboard-visible #session-tab-bar {
 }
 
 body.keyboard-visible #chat-input-bar {
-  bottom: calc(var(--keyboard-height, 0px) + 78px);
+  bottom: calc(var(--keyboard-height, 0px) + 40px);
 }
 
 body.keyboard-visible #status-bar {
@@ -1721,11 +1721,10 @@ button span + .icon {
 @media (hover: none) and (pointer: coarse) {
   #chat-input-bar {
     position: fixed;
-    bottom: 78px;
+    bottom: 40px;
     left: 0;
     right: 0;
     background: var(--bg-secondary);
-    border-top: 1px solid var(--border-color);
     padding: 4px var(--spacing-sm);
     z-index: 49;
     display: flex;
@@ -1860,6 +1859,6 @@ button span + .icon {
   }
 
   body.keyboard-visible.chat-input-visible #chat-input-bar {
-    bottom: calc(var(--keyboard-height, 0px) + 78px);
+    bottom: calc(var(--keyboard-height, 0px) + 40px);
   }
 }
