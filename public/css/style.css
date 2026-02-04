@@ -472,7 +472,6 @@ html, body {
   padding: 0 var(--spacing-lg);
   font-size: var(--font-size-xs);
   gap: var(--spacing-sm);
-  border-top: 1px solid var(--border-color);
 }
 
 #status-bar.connected {
@@ -481,12 +480,10 @@ html, body {
 
 #status-bar.disconnected {
   background: rgba(199, 95, 95, 0.15);
-  border-top-color: var(--accent-error);
 }
 
 #status-bar.reconnecting {
   background: rgba(212, 165, 116, 0.15);
-  border-top-color: var(--accent-warning);
 }
 
 #connection-indicator {
@@ -978,7 +975,6 @@ html, body {
     right: 0;
     height: 38px;
     background: var(--bg-secondary);
-    border-top: 1px solid var(--border-color);
     align-items: center;
     padding: 0 4px;
     gap: 4px;
