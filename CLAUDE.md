@@ -25,7 +25,6 @@ pm2 status             # 状態確認
 
 - **PM2で常時起動**: `ccmobile` という名前で登録済み
 - 変更を反映するには `pm2 restart ccmobile` が必要
-- テスト時は `PORT=3001 node server.js` で別ポートで起動し、本番環境に影響を与えずに検証できる
 
 ## アーキテクチャ
 

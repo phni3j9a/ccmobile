@@ -800,7 +800,8 @@
 
       // 特別なボタン（独自のタッチハンドラを持つ）は除外
       if (btn.id === 'settings-toggle' || btn.id === 'scroll-mode-btn' ||
-          btn.id === 'paste-btn' || btn.id === 'image-upload-btn') {
+          btn.id === 'paste-btn' || btn.id === 'image-upload-btn' ||
+          btn.id === 'md-viewer-btn') {
         return;
       }
 
@@ -823,7 +824,8 @@
 
       // 特別なボタン（独自のタッチハンドラを持つ）は除外
       if (btn.id === 'settings-toggle' || btn.id === 'scroll-mode-btn' ||
-          btn.id === 'paste-btn' || btn.id === 'image-upload-btn') {
+          btn.id === 'paste-btn' || btn.id === 'image-upload-btn' ||
+          btn.id === 'md-viewer-btn') {
         return;
       }
 
@@ -869,7 +871,8 @@
 
       // 特別なボタン（独自のハンドラを持つ）は除外
       if (btn.id === 'settings-toggle' || btn.id === 'scroll-mode-btn' ||
-          btn.id === 'paste-btn' || btn.id === 'image-upload-btn') {
+          btn.id === 'paste-btn' || btn.id === 'image-upload-btn' ||
+          btn.id === 'md-viewer-btn') {
         return;
       }
 
@@ -1222,6 +1225,414 @@
         closeUploadModal();
       }
     });
+
+    // ===========================================
+    // マークダウンビューア/エディタ機能
+    // ===========================================
+
+    const mdModal = document.getElementById('md-modal');
+    const mdModalOverlay = document.getElementById('md-modal-overlay');
+    const mdBackBtn = document.getElementById('md-back-btn');
+    const mdTitle = document.getElementById('md-title');
+    const mdCloseBtn = document.getElementById('md-close-btn');
+    const mdModeToggle = document.getElementById('md-mode-toggle');
+    const mdSaveBtn = document.getElementById('md-save-btn');
+    const mdBrowser = document.getElementById('md-browser');
+    const mdBreadcrumb = document.getElementById('md-breadcrumb');
+    const mdFileList = document.getElementById('md-file-list');
+    const mdViewer = document.getElementById('md-viewer');
+    const mdRendered = document.getElementById('md-rendered');
+    const mdEditor = document.getElementById('md-editor');
+    const mdEditorTextarea = document.getElementById('md-editor-textarea');
+    const mdViewerBtn = document.getElementById('md-viewer-btn');
+    const mdHiddenToggle = document.getElementById('md-hidden-toggle');
+
+    // マークダウン機能の状態
+    let mdCurrentPath = null; // 現在のブラウズパス
+    let mdCurrentFile = null; // 現在開いているファイルパス
+    let mdCurrentContent = ''; // 現在のファイル内容（保存済み）
+    let mdViewState = 'browser'; // 'browser' | 'viewer' | 'editor'
+    let mdIsDirty = false; // 未保存の変更があるか
+    let mdShowHidden = false; // 隠しファイル表示
+
+    // markedの設定
+    function initMarked() {
+      if (typeof marked !== 'undefined') {
+        marked.setOptions({
+          gfm: true,
+          breaks: true
+        });
+      }
+    }
+
+    // モーダルを開く
+    function showMdModal() {
+      if (term && term.textarea) {
+        term.textarea.blur();
+      }
+      mdModal.classList.remove('hidden');
+      mdModalOverlay.classList.remove('hidden');
+      initMarked();
+      // ブラウザモードで開始
+      mdCurrentPath = null;
+      mdCurrentFile = null;
+      mdIsDirty = false;
+      setMdViewState('browser');
+      browseMdDirectory(null);
+      // Lucide Iconsを初期化
+      if (typeof lucide !== 'undefined' && lucide.createIcons) {
+        setTimeout(() => lucide.createIcons(), 50);
+      }
+    }
+
+    // モーダルを閉じる
+    function closeMdModal() {
+      if (mdIsDirty) {
+        if (!confirm('未保存の変更があります。閉じますか？')) {
+          return;
+        }
+      }
+      mdModal.classList.add('hidden');
+      mdModalOverlay.classList.add('hidden');
+      mdCurrentFile = null;
+      mdCurrentPath = null;
+      mdIsDirty = false;
+    }
+
+    // ビューステート切り替え
+    function setMdViewState(state) {
+      mdViewState = state;
+      mdBrowser.classList.toggle('hidden', state !== 'browser');
+      mdViewer.classList.toggle('hidden', state !== 'viewer');
+      mdEditor.classList.toggle('hidden', state !== 'editor');
+
+      // ヘッダーボタン表示制御
+      mdHiddenToggle.classList.toggle('hidden', state !== 'browser');
+      mdModeToggle.classList.toggle('hidden', state === 'browser');
+      mdSaveBtn.classList.toggle('hidden', state !== 'editor');
+
+      // 戻るボタンの表示（ブラウザモードではパスがHOMEの場合非表示）
+      mdBackBtn.style.visibility = state === 'browser' ? 'visible' : 'visible';
+
+      // モード切り替えボタンのアイコンを更新
+      if (state === 'viewer') {
+        mdModeToggle.innerHTML = '<i data-lucide="pencil" class="icon"></i>';
+        mdModeToggle.setAttribute('aria-label', '編集モードに切り替え');
+      } else if (state === 'editor') {
+        mdModeToggle.innerHTML = '<i data-lucide="eye" class="icon"></i>';
+        mdModeToggle.setAttribute('aria-label', '閲覧モードに切り替え');
+      }
+
+      // タイトル更新
+      if (state === 'browser') {
+        mdTitle.textContent = 'マークダウン';
+      }
+
+      // Lucide Icons再初期化
+      if (typeof lucide !== 'undefined' && lucide.createIcons) {
+        setTimeout(() => lucide.createIcons(), 10);
+      }
+    }
+
+    // ディレクトリ一覧を取得・表示
+    async function browseMdDirectory(dirPath) {
+      try {
+        const queryParams = new URLSearchParams();
+        if (dirPath) queryParams.set('path', dirPath);
+        if (mdShowHidden) queryParams.set('showHidden', 'true');
+        const params = queryParams.toString() ? `?${queryParams.toString()}` : '';
+        const response = await fetch(`/api/files/browse${params}`);
+        const data = await response.json();
+
+        if (!data.success) {
+          showToast(data.error || 'ディレクトリの読み込みに失敗しました', 'error');
+          return;
+        }
+
+        mdCurrentPath = data.path;
+        renderMdBreadcrumb(data.path);
+        renderMdFileList(data.items, data.path);
+      } catch (e) {
+        showToast('ファイル一覧の取得に失敗しました', 'error');
+      }
+    }
+
+    // パンくずリスト描画
+    function renderMdBreadcrumb(dirPath) {
+      mdBreadcrumb.innerHTML = '';
+      const home = dirPath.split('/').slice(0, 3).join('/'); // /home/user
+      const relative = dirPath.startsWith(home) ? dirPath.slice(home.length) : dirPath;
+      const parts = relative.split('/').filter(Boolean);
+
+      // ホームアイコン
+      const homeBtn = document.createElement('button');
+      homeBtn.className = 'md-breadcrumb-item';
+      homeBtn.textContent = '~';
+      homeBtn.addEventListener('click', () => browseMdDirectory(null));
+      mdBreadcrumb.appendChild(homeBtn);
+
+      // 各パーツ
+      let currentPath = home;
+      parts.forEach((part, i) => {
+        currentPath += '/' + part;
+
+        const sep = document.createElement('span');
+        sep.className = 'md-breadcrumb-sep';
+        sep.textContent = '/';
+        mdBreadcrumb.appendChild(sep);
+
+        if (i === parts.length - 1) {
+          const current = document.createElement('span');
+          current.className = 'md-breadcrumb-current';
+          current.textContent = part;
+          mdBreadcrumb.appendChild(current);
+        } else {
+          const btn = document.createElement('button');
+          btn.className = 'md-breadcrumb-item';
+          btn.textContent = part;
+          const pathCopy = currentPath;
+          btn.addEventListener('click', () => browseMdDirectory(pathCopy));
+          mdBreadcrumb.appendChild(btn);
+        }
+      });
+    }
+
+    // ファイル一覧描画
+    function renderMdFileList(items, basePath) {
+      mdFileList.innerHTML = '';
+
+      if (items.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'md-empty';
+        empty.textContent = '.mdファイルが見つかりません';
+        mdFileList.appendChild(empty);
+        return;
+      }
+
+      items.forEach(item => {
+        const el = document.createElement('button');
+        el.className = 'md-file-item';
+        el.setAttribute('data-type', item.type);
+
+        const iconName = item.type === 'directory' ? 'folder' : 'file-text';
+        el.innerHTML = `
+          <i data-lucide="${iconName}" class="md-file-icon"></i>
+          <span class="md-file-name">${escapeHtml(item.name)}</span>
+          ${item.size !== undefined ? `<span class="md-file-meta">${formatFileSize(item.size)}</span>` : ''}
+        `;
+
+        const fullPath = basePath + '/' + item.name;
+        if (item.type === 'directory') {
+          el.addEventListener('click', () => browseMdDirectory(fullPath));
+        } else {
+          el.addEventListener('click', () => openMdFile(fullPath));
+        }
+
+        mdFileList.appendChild(el);
+      });
+
+      // Lucide Icons再初期化
+      if (typeof lucide !== 'undefined' && lucide.createIcons) {
+        setTimeout(() => lucide.createIcons(), 10);
+      }
+    }
+
+    // ファイルサイズフォーマット
+    function formatFileSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    // ファイルを開く（閲覧モード）
+    async function openMdFile(filePath) {
+      try {
+        const response = await fetch(`/api/files/read?path=${encodeURIComponent(filePath)}`);
+        const data = await response.json();
+
+        if (!data.success) {
+          showToast(data.error || 'ファイルの読み込みに失敗しました', 'error');
+          return;
+        }
+
+        mdCurrentFile = data.path;
+        mdCurrentContent = data.content;
+        mdIsDirty = false;
+
+        // ファイル名をタイトルに表示
+        const fileName = filePath.split('/').pop();
+        mdTitle.textContent = fileName;
+
+        // マークダウンをレンダリング
+        renderMdContent(data.content);
+        setMdViewState('viewer');
+      } catch (e) {
+        showToast('ファイルの読み込みに失敗しました', 'error');
+      }
+    }
+
+    // マークダウンをHTMLにレンダリング
+    function renderMdContent(content) {
+      if (typeof marked !== 'undefined') {
+        mdRendered.innerHTML = marked.parse(content);
+        // シンタックスハイライト
+        if (typeof hljs !== 'undefined') {
+          mdRendered.querySelectorAll('pre code').forEach(block => {
+            hljs.highlightElement(block);
+          });
+        }
+      } else {
+        mdRendered.textContent = content;
+      }
+    }
+
+    // モード切り替え（閲覧↔編集）
+    function toggleMdMode() {
+      if (mdViewState === 'viewer') {
+        // 閲覧 → 編集
+        mdEditorTextarea.value = mdCurrentContent;
+        if (mdIsDirty) {
+          // 未保存の編集内容がある場合はそちらを表示
+          // （通常はないが安全のため）
+        }
+        setMdViewState('editor');
+        mdEditorTextarea.focus();
+      } else if (mdViewState === 'editor') {
+        // 編集 → 閲覧（プレビュー更新）
+        const editedContent = mdEditorTextarea.value;
+        renderMdContent(editedContent);
+        setMdViewState('viewer');
+      }
+    }
+
+    // ファイルを保存
+    async function saveMdFile() {
+      if (!mdCurrentFile) return;
+
+      const content = mdEditorTextarea.value;
+
+      try {
+        const response = await fetch('/api/files/write', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: mdCurrentFile, content })
+        });
+        const data = await response.json();
+
+        if (!data.success) {
+          showToast(data.error || '保存に失敗しました', 'error');
+          return;
+        }
+
+        mdCurrentContent = content;
+        mdIsDirty = false;
+        showToast('保存しました', 'success', 1500);
+        log('マークダウン保存: ' + mdCurrentFile);
+      } catch (e) {
+        showToast('保存に失敗しました: ' + e.message, 'error');
+      }
+    }
+
+    // 戻るボタン処理
+    function mdGoBack() {
+      if (mdViewState === 'viewer' || mdViewState === 'editor') {
+        if (mdIsDirty) {
+          if (!confirm('未保存の変更があります。戻りますか？')) {
+            return;
+          }
+        }
+        mdCurrentFile = null;
+        mdIsDirty = false;
+        setMdViewState('browser');
+        // 現在のディレクトリを再読み込み
+        browseMdDirectory(mdCurrentPath);
+      } else if (mdViewState === 'browser' && mdCurrentPath) {
+        // 親ディレクトリに移動
+        const parent = mdCurrentPath.split('/').slice(0, -1).join('/');
+        const home = (mdCurrentPath.split('/').slice(0, 3).join('/'));
+        if (parent.length >= home.length) {
+          browseMdDirectory(parent);
+        }
+      }
+    }
+
+    // 編集検出
+    if (mdEditorTextarea) {
+      mdEditorTextarea.addEventListener('input', () => {
+        mdIsDirty = mdEditorTextarea.value !== mdCurrentContent;
+      });
+    }
+
+    // イベントリスナー
+    if (mdCloseBtn) {
+      mdCloseBtn.addEventListener('click', closeMdModal);
+    }
+    if (mdModalOverlay) {
+      mdModalOverlay.addEventListener('click', closeMdModal);
+    }
+    if (mdBackBtn) {
+      mdBackBtn.addEventListener('click', mdGoBack);
+    }
+    if (mdModeToggle) {
+      mdModeToggle.addEventListener('click', toggleMdMode);
+    }
+    if (mdSaveBtn) {
+      mdSaveBtn.addEventListener('click', saveMdFile);
+    }
+    if (mdHiddenToggle) {
+      mdHiddenToggle.addEventListener('click', () => {
+        mdShowHidden = !mdShowHidden;
+        mdHiddenToggle.classList.toggle('md-hidden-active', mdShowHidden);
+        mdHiddenToggle.innerHTML = mdShowHidden
+          ? '<i data-lucide="eye" class="icon"></i>'
+          : '<i data-lucide="eye-off" class="icon"></i>';
+        mdHiddenToggle.setAttribute('aria-label', mdShowHidden ? '隠しファイルを非表示' : '隠しファイルを表示');
+        if (typeof lucide !== 'undefined' && lucide.createIcons) {
+          setTimeout(() => lucide.createIcons(), 10);
+        }
+        browseMdDirectory(mdCurrentPath);
+      });
+    }
+
+    // Escキーでモーダルを閉じる
+    if (mdModal) {
+      mdModal.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          if (mdViewState === 'viewer' || mdViewState === 'editor') {
+            mdGoBack();
+          } else {
+            closeMdModal();
+          }
+        }
+      });
+    }
+
+    // マークダウンボタン: タップ/スワイプ判定
+    let mdBtnStartX = 0;
+    let mdBtnStartY = 0;
+
+    if (mdViewerBtn) {
+      mdViewerBtn.addEventListener('touchstart', (e) => {
+        mdBtnStartX = e.touches[0].clientX;
+        mdBtnStartY = e.touches[0].clientY;
+      }, { passive: true });
+
+      mdViewerBtn.addEventListener('touchend', (e) => {
+        const deltaX = Math.abs(e.changedTouches[0].clientX - mdBtnStartX);
+        const deltaY = Math.abs(e.changedTouches[0].clientY - mdBtnStartY);
+        if (deltaX > 10 || deltaY > 10) return;
+
+        e.preventDefault();
+        showMdModal();
+      });
+
+      mdViewerBtn.addEventListener('click', (e) => {
+        if (e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) return;
+        e.preventDefault();
+        showMdModal();
+      });
+    }
 
     // 画像アップロードボタン: キーボード状態維持 + タップ/スワイプ判定
     let imageBtnWasFocused = false;

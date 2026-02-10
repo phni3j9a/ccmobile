@@ -21,6 +21,13 @@
   <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-unicode11@0.8.0/lib/addon-unicode11.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-web-links@0.12.0/lib/addon-web-links.js"></script>
 
+  <!-- Marked (Markdown Parser) -->
+  <script src="https://cdn.jsdelivr.net/npm/marked@15/marked.min.js"></script>
+
+  <!-- Highlight.js (Syntax Highlighting) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/github-dark.min.css">
+  <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+
   <!-- Lucide Icons -->
   <script src="https://cdn.jsdelivr.net/npm/lucide@0.460.0/dist/umd/lucide.min.js"></script>
 
@@ -75,6 +82,9 @@
     </button>
     <button class="key-btn image-btn" id="image-upload-btn" title="画像をアップロード" aria-label="画像をアップロード">
       <i data-lucide="image-plus" class="icon"></i>
+    </button>
+    <button class="key-btn md-btn" id="md-viewer-btn" title="マークダウンビューア" aria-label="マークダウンビューア">
+      <i data-lucide="file-text" class="icon"></i>
     </button>
     <button class="key-btn" data-key="Escape" aria-label="Escape">Esc</button>
     <button class="key-btn" data-key="Tab" aria-label="Tab">Tab</button>
@@ -258,6 +268,41 @@
     </div>
   </div>
   <div id="upload-modal-overlay" class="hidden" aria-hidden="true"></div>
+
+  <!-- マークダウンビューアモーダル -->
+  <div id="md-modal-overlay" class="hidden" aria-hidden="true"></div>
+  <div id="md-modal" class="hidden" role="dialog" aria-labelledby="md-title" aria-modal="true">
+    <div id="md-header">
+      <button id="md-back-btn" aria-label="戻る">
+        <i data-lucide="arrow-left" class="icon"></i>
+      </button>
+      <span id="md-title">マークダウン</span>
+      <div id="md-header-actions">
+        <button id="md-hidden-toggle" aria-label="隠しファイルを表示" title="隠しファイル表示">
+          <i data-lucide="eye-off" class="icon"></i>
+        </button>
+        <button id="md-mode-toggle" class="hidden" aria-label="編集モードに切り替え">
+          <i data-lucide="pencil" class="icon"></i>
+        </button>
+        <button id="md-save-btn" class="hidden" aria-label="保存">
+          <i data-lucide="save" class="icon"></i>
+        </button>
+        <button id="md-close-btn" aria-label="閉じる">
+          <i data-lucide="x" class="icon"></i>
+        </button>
+      </div>
+    </div>
+    <div id="md-browser">
+      <div id="md-breadcrumb"></div>
+      <div id="md-file-list"></div>
+    </div>
+    <div id="md-viewer" class="hidden">
+      <div id="md-rendered"></div>
+    </div>
+    <div id="md-editor" class="hidden">
+      <textarea id="md-editor-textarea" spellcheck="false"></textarea>
+    </div>
+  </div>
 
   <script src="/js/terminal.js"></script>
 </body>

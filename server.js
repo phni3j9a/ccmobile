@@ -84,9 +84,45 @@ function getFullSessionName(sessionName) {
   return config.SESSION_PREFIX + name;
 }
 
+/**
+ * ファイルパスを検証する（マークダウンファイルAPI用）
+ * HOMEディレクトリ配下のみ許可、シンボリックリンク解決後も再検証
+ * @param {string} filePath - 検証するファイルパス
+ * @returns {string} 検証済みの絶対パス
+ * @throws {Error} 無効なパスの場合
+ */
+function validateFilePath(filePath) {
+  if (typeof filePath !== 'string' || filePath.trim() === '') {
+    throw new Error('パスが指定されていません');
+  }
+
+  const homeDir = process.env.HOME;
+  const resolved = path.resolve(filePath);
+
+  // HOMEディレクトリ配下かチェック
+  if (!resolved.startsWith(homeDir + '/') && resolved !== homeDir) {
+    throw new Error('許可されたディレクトリ外へのアクセスです');
+  }
+
+  // シンボリックリンク解決後の再検証
+  try {
+    const real = fs.realpathSync(resolved);
+    if (!real.startsWith(homeDir + '/') && real !== homeDir) {
+      throw new Error('許可されたディレクトリ外へのアクセスです');
+    }
+    return real;
+  } catch (e) {
+    if (e.code === 'ENOENT') {
+      // ファイルが存在しない場合はresolved pathを返す（新規作成用ではないが安全）
+      return resolved;
+    }
+    throw e;
+  }
+}
+
 // 静的ファイル配信
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
 
 // ===========================================
 // tmux管理関数
@@ -277,6 +313,128 @@ app.put('/api/sessions/:name/rename', (req, res) => {
     res.json({ success: true, name: newFullName, displayName: newName.trim() });
   } catch (e) {
     console.error('tmuxセッション名変更エラー:', e.message);
+    res.status(400).json({ success: false, error: e.message });
+  }
+});
+
+// ===========================================
+// マークダウンファイルAPI
+// ===========================================
+
+// ディレクトリ一覧取得（.mdファイルとディレクトリのみ）
+app.get('/api/files/browse', (req, res) => {
+  try {
+    const dirPath = req.query.path || process.env.HOME;
+    const validated = validateFilePath(dirPath);
+
+    const stat = fs.statSync(validated);
+    if (!stat.isDirectory()) {
+      return res.status(400).json({ success: false, error: 'ディレクトリではありません' });
+    }
+
+    const showHidden = req.query.showHidden === 'true';
+    const entries = fs.readdirSync(validated, { withFileTypes: true });
+    const items = [];
+
+    for (const entry of entries) {
+      // 隠しファイル/ディレクトリの表示制御
+      if (!showHidden && entry.name.startsWith('.')) continue;
+
+      if (entry.isDirectory()) {
+        items.push({ name: entry.name, type: 'directory' });
+      } else if (entry.isFile() && entry.name.endsWith('.md')) {
+        try {
+          const fileStat = fs.statSync(path.join(validated, entry.name));
+          items.push({
+            name: entry.name,
+            type: 'file',
+            size: fileStat.size,
+            modified: fileStat.mtimeMs
+          });
+        } catch (e) {
+          // statエラーは無視
+        }
+      }
+    }
+
+    // ディレクトリ優先、同種内では名前順
+    items.sort((a, b) => {
+      if (a.type !== b.type) return a.type === 'directory' ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+
+    res.json({ success: true, path: validated, items });
+  } catch (e) {
+    res.status(400).json({ success: false, error: e.message });
+  }
+});
+
+// .mdファイルの内容取得
+app.get('/api/files/read', (req, res) => {
+  try {
+    const filePath = req.query.path;
+    if (!filePath) {
+      return res.status(400).json({ success: false, error: 'パスが指定されていません' });
+    }
+
+    const validated = validateFilePath(filePath);
+
+    if (!validated.endsWith('.md')) {
+      return res.status(400).json({ success: false, error: '.mdファイルのみ読み取り可能です' });
+    }
+
+    const stat = fs.statSync(validated);
+    if (!stat.isFile()) {
+      return res.status(400).json({ success: false, error: 'ファイルではありません' });
+    }
+
+    if (stat.size > config.MD_MAX_FILE_SIZE) {
+      return res.status(400).json({ success: false, error: `ファイルサイズが大きすぎます（上限: ${config.MD_MAX_FILE_SIZE / 1024 / 1024}MB）` });
+    }
+
+    const content = fs.readFileSync(validated, 'utf-8');
+    res.json({ success: true, path: validated, content, size: stat.size, modified: stat.mtimeMs });
+  } catch (e) {
+    if (e.code === 'ENOENT') {
+      return res.status(404).json({ success: false, error: 'ファイルが見つかりません' });
+    }
+    res.status(400).json({ success: false, error: e.message });
+  }
+});
+
+// 既存.mdファイルの上書き保存
+app.put('/api/files/write', (req, res) => {
+  try {
+    const { path: filePath, content } = req.body;
+
+    if (!filePath) {
+      return res.status(400).json({ success: false, error: 'パスが指定されていません' });
+    }
+    if (typeof content !== 'string') {
+      return res.status(400).json({ success: false, error: 'コンテンツが指定されていません' });
+    }
+
+    const validated = validateFilePath(filePath);
+
+    if (!validated.endsWith('.md')) {
+      return res.status(400).json({ success: false, error: '.mdファイルのみ書き込み可能です' });
+    }
+
+    // 既存ファイルのみ上書き可能
+    if (!fs.existsSync(validated) || !fs.statSync(validated).isFile()) {
+      return res.status(400).json({ success: false, error: '既存のファイルのみ上書き可能です' });
+    }
+
+    const contentBytes = Buffer.byteLength(content, 'utf-8');
+    if (contentBytes > config.MD_MAX_FILE_SIZE) {
+      return res.status(400).json({ success: false, error: `コンテンツが大きすぎます（上限: ${config.MD_MAX_FILE_SIZE / 1024 / 1024}MB）` });
+    }
+
+    fs.writeFileSync(validated, content, 'utf-8');
+    console.log('マークダウンファイル保存:', validated);
+
+    res.json({ success: true, path: validated, size: contentBytes });
+  } catch (e) {
     res.status(400).json({ success: false, error: e.message });
   }
 });
@@ -606,6 +764,10 @@ app.get('/api/usage/claude', async (req, res) => {
       let data = '';
       apiRes.on('data', chunk => data += chunk);
       apiRes.on('end', () => {
+        // 既にレスポンス送信済みならスキップ（タイムアウトやエラーとの競合防止）
+        if (res.headersSent) {
+          return;
+        }
         try {
           const parsed = JSON.parse(data);
 
@@ -635,7 +797,9 @@ app.get('/api/usage/claude', async (req, res) => {
             subscriptionType: oauth.subscriptionType || 'unknown'
           });
         } catch (e) {
-          res.json({ success: false, error: 'レスポンスの解析に失敗しました' });
+          if (!res.headersSent) {
+            res.json({ success: false, error: 'レスポンスの解析に失敗しました' });
+          }
         }
       });
     });

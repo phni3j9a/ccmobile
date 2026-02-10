@@ -34,7 +34,10 @@ const config = {
   UPLOAD_DIR: process.env.UPLOAD_DIR || require('path').join(process.env.HOME, 'uploads', 'ccmobile'),
   UPLOAD_MAX_SIZE: parseInt(process.env.UPLOAD_MAX_SIZE, 10) || 10 * 1024 * 1024, // 10MB
   UPLOAD_ALLOWED_TYPES: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
-  UPLOAD_CLEANUP_DAYS: parseInt(process.env.UPLOAD_CLEANUP_DAYS, 10) || 7
+  UPLOAD_CLEANUP_DAYS: parseInt(process.env.UPLOAD_CLEANUP_DAYS, 10) || 7,
+
+  // マークダウンファイル設定
+  MD_MAX_FILE_SIZE: parseInt(process.env.MD_MAX_FILE_SIZE, 10) || 1 * 1024 * 1024 // 1MB
 };
 
 // 設定の検証
