@@ -9,8 +9,6 @@
     const reconnectBtn = document.getElementById('reconnect-btn');
     const specialKeysToolbar = document.getElementById('special-keys-toolbar');
 
-    const scrollModeBtn = document.getElementById('scroll-mode-btn');
-    const pasteBtn = document.getElementById('paste-btn');
     const copyBtn = document.getElementById('copy-btn');
     const settingsToggle = document.getElementById('settings-toggle');
     const settingsPanel = document.getElementById('settings-panel');
@@ -92,10 +90,6 @@
     // 状態
     let usageUpdateTimer = null;
     let lastUsageData = null;
-    let scrollModeActive = false;
-    let scrollTouchStartY = 0;
-    let scrollLastY = 0;
-    let scrollTouchIdentifier = null;
     let chatInputVisible = true; // 常時表示
 
 
@@ -740,23 +734,6 @@
 
     // 特殊キーツールバー
     function sendKey(key) {
-      // スクロールモード中のPgUp/PgDn処理
-      if (scrollModeActive && (key === 'PageUp' || key === 'PageDown')) {
-        if (isAlternateBufferActive()) {
-          // alternateバッファ（Claude Code等）の場合はキーをそのまま送信
-          const keyMap = { 'PageUp': '\x1b[5~', 'PageDown': '\x1b[6~' };
-          if (socket && socket.connected) {
-            socket.emit('input', keyMap[key]);
-          }
-        } else {
-          // normalバッファの場合はxterm.jsでスクロール
-          if (term) {
-            term.scrollPages(key === 'PageUp' ? -1 : 1);
-          }
-        }
-        return;
-      }
-
       const keyMap = {
         'Escape': '\x1b',
         'Tab': '\t',
@@ -799,8 +776,7 @@
       if (!btn) return;
 
       // 特別なボタン（独自のタッチハンドラを持つ）は除外
-      if (btn.id === 'settings-toggle' || btn.id === 'scroll-mode-btn' ||
-          btn.id === 'paste-btn' || btn.id === 'image-upload-btn' ||
+      if (btn.id === 'settings-toggle' || btn.id === 'image-upload-btn' ||
           btn.id === 'md-viewer-btn') {
         return;
       }
@@ -823,8 +799,7 @@
       if (!btn) return;
 
       // 特別なボタン（独自のタッチハンドラを持つ）は除外
-      if (btn.id === 'settings-toggle' || btn.id === 'scroll-mode-btn' ||
-          btn.id === 'paste-btn' || btn.id === 'image-upload-btn' ||
+      if (btn.id === 'settings-toggle' || btn.id === 'image-upload-btn' ||
           btn.id === 'md-viewer-btn') {
         return;
       }
@@ -870,8 +845,7 @@
       if (!btn) return;
 
       // 特別なボタン（独自のハンドラを持つ）は除外
-      if (btn.id === 'settings-toggle' || btn.id === 'scroll-mode-btn' ||
-          btn.id === 'paste-btn' || btn.id === 'image-upload-btn' ||
+      if (btn.id === 'settings-toggle' || btn.id === 'image-upload-btn' ||
           btn.id === 'md-viewer-btn') {
         return;
       }
@@ -1690,93 +1664,6 @@
       }
     }
 
-    // ペーストボタン: キーボード状態維持 + タップ/スワイプ判定
-    let pasteBtnWasFocused = false;
-    let pasteBtnStartX = 0;
-    let pasteBtnStartY = 0;
-
-    pasteBtn.addEventListener('touchstart', (e) => {
-      pasteBtnWasFocused = document.activeElement === term.textarea;
-      pasteBtnStartX = e.touches[0].clientX;
-      pasteBtnStartY = e.touches[0].clientY;
-    }, { passive: true });
-
-    pasteBtn.addEventListener('touchend', (e) => {
-      const deltaX = Math.abs(e.changedTouches[0].clientX - pasteBtnStartX);
-      const deltaY = Math.abs(e.changedTouches[0].clientY - pasteBtnStartY);
-      if (deltaX > 10 || deltaY > 10) return; // スワイプは無視
-
-      e.preventDefault();
-      pasteFromClipboard(pasteBtnWasFocused);
-    });
-
-    pasteBtn.addEventListener('click', (e) => {
-      if (e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) return;
-      e.preventDefault();
-      pasteFromClipboard(true);
-    });
-
-    // スクロールモード（tmuxコピーモード）ボタン: キーボード状態維持 + タップ/スワイプ判定
-    let scrollBtnWasFocused = false;
-    let scrollBtnStartX = 0;
-    let scrollBtnStartY = 0;
-
-    scrollModeBtn.addEventListener('touchstart', (e) => {
-      scrollBtnWasFocused = document.activeElement === term.textarea;
-      scrollBtnStartX = e.touches[0].clientX;
-      scrollBtnStartY = e.touches[0].clientY;
-    }, { passive: true });
-
-    scrollModeBtn.addEventListener('touchend', (e) => {
-      const deltaX = Math.abs(e.changedTouches[0].clientX - scrollBtnStartX);
-      const deltaY = Math.abs(e.changedTouches[0].clientY - scrollBtnStartY);
-      if (deltaX > 10 || deltaY > 10) return; // スワイプは無視
-
-      e.preventDefault();
-      toggleScrollMode(scrollBtnWasFocused);
-    });
-
-    scrollModeBtn.addEventListener('click', (e) => {
-      if (e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) return;
-      e.preventDefault();
-      toggleScrollMode(false); // デスクトップではスクロール操作に専念
-    });
-
-    function toggleScrollMode(restoreFocus) {
-      if (!scrollModeActive) {
-        // スクロールモードON
-        scrollModeActive = true;
-        scrollModeBtn.classList.add('active');
-        scrollModeBtn.setAttribute('aria-pressed', 'true');
-        terminalElement.classList.add('scroll-mode');
-        // tmuxコピーモードに入る
-        if (socket && socket.connected) {
-          socket.emit('input', '\x02['); // Ctrl+b [
-        }
-        log('スクロールモード ON (tmuxコピーモード)');
-        // キーボードを閉じる（ブラウザの非同期フォーカス対策で遅延実行）
-        if (term && term.textarea) {
-          term.textarea.blur();
-          setTimeout(() => term.textarea.blur(), 50);
-        }
-      } else {
-        // スクロールモードOFF
-        scrollModeActive = false;
-        scrollModeBtn.classList.remove('active');
-        scrollModeBtn.setAttribute('aria-pressed', 'false');
-        terminalElement.classList.remove('scroll-mode');
-        // tmuxコピーモードを抜ける
-        if (socket && socket.connected) {
-          socket.emit('input', 'q');
-        }
-        log('スクロールモード OFF');
-      }
-      // スクロールモードOFFの時だけフォーカスを戻す（ON時はキーボードを開かない）
-      if (restoreFocus && !scrollModeActive) {
-        term.focus();
-      }
-    }
-
     // コピー機能
     term.onSelectionChange(() => {
       const selection = term.getSelection();
@@ -2218,13 +2105,17 @@
     let touchScrollActive = false;
     const TOUCH_SCROLL_DEAD_ZONE = 10;
 
-    // xterm.jsのviewport要素を取得（wheelイベントのターゲット）
+    function isTouchInTerminal(touch) {
+      const rect = terminalElement.getBoundingClientRect();
+      return touch.clientX >= rect.left && touch.clientX <= rect.right &&
+             touch.clientY >= rect.top && touch.clientY <= rect.bottom;
+    }
+
     function getXtermViewport() {
       return terminalElement.querySelector('.xterm-viewport');
     }
 
     document.addEventListener('touchstart', (e) => {
-      if (scrollModeActive) return;
       if (e.touches.length !== 1) return;
       const touch = e.touches[0];
       if (!isTouchInTerminal(touch)) return;
@@ -2235,7 +2126,6 @@
     }, { passive: true, capture: true });
 
     document.addEventListener('touchmove', (e) => {
-      if (scrollModeActive) return;
       if (e.touches.length !== 1 || touchScrollStartY === null) return;
 
       const touch = e.touches[0];
@@ -2271,85 +2161,6 @@
         touchScrollStartY = null;
         touchScrollLastY = null;
         touchScrollActive = false;
-      }
-    }, { passive: true, capture: true });
-
-    // ===========================================
-    // スクロールモード用タッチイベント
-    // ===========================================
-
-    let scrollAccumulator = 0; // スクロール量の蓄積用
-    let lastScrollTime = 0; // 最後にスクロールコマンドを送信した時刻
-    const SCROLL_THROTTLE = 30; // 30ms間隔でコマンド送信
-
-    // ターミナル領域内かどうかを判定
-    function isTouchInTerminal(touch) {
-      const rect = terminalElement.getBoundingClientRect();
-      return touch.clientX >= rect.left && touch.clientX <= rect.right &&
-             touch.clientY >= rect.top && touch.clientY <= rect.bottom;
-    }
-
-    // スクロールモード用touchstart（documentレベル、captureフェーズ）
-    document.addEventListener('touchstart', (e) => {
-      if (!scrollModeActive) return;
-      if (e.touches.length !== 1) return;
-
-      const touch = e.touches[0];
-      if (!isTouchInTerminal(touch)) return;
-
-      scrollTouchStartY = touch.clientY;
-      scrollLastY = scrollTouchStartY;
-      scrollTouchIdentifier = touch.identifier;
-    }, { passive: true, capture: true });
-
-    // スクロールモード用touchmove（documentレベル、captureフェーズ）
-    document.addEventListener('touchmove', (e) => {
-      if (!scrollModeActive) return;
-      if (scrollTouchIdentifier === null) return;
-
-      const touch = Array.from(e.touches).find(t => t.identifier === scrollTouchIdentifier);
-      if (!touch) return;
-
-      e.preventDefault(); // デフォルトスクロール抑制
-
-      const currentY = touch.clientY;
-      const deltaY = scrollLastY - currentY;
-      scrollLastY = currentY;
-
-      // tmuxコピーモード中はCtrl+u/Ctrl+dで半ページスクロール
-      scrollAccumulator += deltaY;
-      const threshold = 50; // 50px移動で半ページ
-      const now = Date.now();
-
-      // スロットリング: 前回送信から一定時間経過していない場合はスキップ
-      if (now - lastScrollTime < SCROLL_THROTTLE) {
-        return;
-      }
-
-      // 蓄積量に応じてスクロールコマンドを送信（1回のみ）
-      if (Math.abs(scrollAccumulator) >= threshold) {
-        if (scrollAccumulator > 0) {
-          // 上にスワイプ → Ctrl+d（下にスクロール＝過去を見る）
-          if (socket && socket.connected) {
-            socket.emit('input', '\x04'); // Ctrl+d
-          }
-          scrollAccumulator -= threshold;
-        } else {
-          // 下にスワイプ → Ctrl+u（上にスクロール＝新しい方を見る）
-          if (socket && socket.connected) {
-            socket.emit('input', '\x15'); // Ctrl+u
-          }
-          scrollAccumulator += threshold;
-        }
-        lastScrollTime = now;
-      }
-    }, { passive: false, capture: true });
-
-    // スクロールモード用touchend（documentレベル）
-    document.addEventListener('touchend', (e) => {
-      if (scrollModeActive && scrollTouchIdentifier !== null) {
-        scrollTouchIdentifier = null;
-        scrollAccumulator = 0;
       }
     }, { passive: true, capture: true });
 
@@ -2658,9 +2469,6 @@
     }, { passive: true });
 
     terminalElement.addEventListener('touchend', (e) => {
-      // スクロールモード中は画面端スワイプを無効化
-      if (scrollModeActive) return;
-
       const touch = e.changedTouches[0];
       const deltaX = touch.clientX - swipeStartX;
       const deltaY = Math.abs(touch.clientY - swipeStartY);

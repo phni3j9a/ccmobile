@@ -399,9 +399,7 @@ html, body {
 }
 
 /* アイコンボタン */
-.key-btn.scroll-btn,
 .key-btn.settings-btn,
-.key-btn.paste-btn,
 .key-btn.image-btn {
   display: flex;
   align-items: center;
@@ -421,29 +419,6 @@ html, body {
 #terminal {
   width: 100%;
   height: 100%;
-}
-
-/* Scroll Mode Visual Feedback */
-#terminal.scroll-mode {
-  border: 2px solid var(--accent-info);
-  border-radius: var(--border-radius-sm);
-  position: relative;
-}
-
-#terminal.scroll-mode::after {
-  content: 'SCROLL';
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  background: var(--accent-info);
-  color: #fff;
-  padding: 4px 12px;
-  border-radius: var(--border-radius-full);
-  font-size: var(--font-size-xs);
-  font-weight: 600;
-  letter-spacing: 0.5px;
-  opacity: 0.95;
-  z-index: 10;
 }
 
 /* Special Keys Toolbar */
@@ -1093,16 +1068,9 @@ html, body {
     transform: scale(0.95);
   }
 
-  .key-btn.paste-btn,
   .key-btn.image-btn {
     font-size: 14px;
     font-family: inherit;
-  }
-
-  .key-btn.scroll-btn.active {
-    background: var(--accent-info);
-    border-color: var(--accent-info);
-    color: #fff;
   }
 
   /* Status Bar adjustment */
@@ -1699,11 +1667,6 @@ button span + .icon {
 .upload-copy-btn .icon {
   width: 18px;
   height: 18px;
-}
-
-/* スクロールモードアクティブ時のアイコン */
-.scroll-btn.active .icon {
-  color: #fff;
 }
 
 /* 回転アニメーション（更新ボタン用） */
