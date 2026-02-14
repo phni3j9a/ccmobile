@@ -2210,6 +2210,71 @@
     }, { passive: true });
 
     // ===========================================
+    // 1本指タッチスクロール（モバイル用）
+    // タッチ移動をwheelイベントに変換してxterm.jsに渡す
+    // ===========================================
+    let touchScrollStartY = null;
+    let touchScrollLastY = null;
+    let touchScrollActive = false;
+    const TOUCH_SCROLL_DEAD_ZONE = 10;
+
+    // xterm.jsのviewport要素を取得（wheelイベントのターゲット）
+    function getXtermViewport() {
+      return terminalElement.querySelector('.xterm-viewport');
+    }
+
+    document.addEventListener('touchstart', (e) => {
+      if (scrollModeActive) return;
+      if (e.touches.length !== 1) return;
+      const touch = e.touches[0];
+      if (!isTouchInTerminal(touch)) return;
+
+      touchScrollStartY = touch.clientY;
+      touchScrollLastY = touch.clientY;
+      touchScrollActive = false;
+    }, { passive: true, capture: true });
+
+    document.addEventListener('touchmove', (e) => {
+      if (scrollModeActive) return;
+      if (e.touches.length !== 1 || touchScrollStartY === null) return;
+
+      const touch = e.touches[0];
+      const currentY = touch.clientY;
+
+      if (!touchScrollActive) {
+        if (Math.abs(currentY - touchScrollStartY) > TOUCH_SCROLL_DEAD_ZONE) {
+          touchScrollActive = true;
+          touchScrollLastY = currentY;
+        }
+        return;
+      }
+
+      const deltaY = touchScrollLastY - currentY;
+      touchScrollLastY = currentY;
+
+      // タッチ移動をwheelイベントに変換（PCのトラックパッドと同じパスを通す）
+      const viewport = getXtermViewport();
+      if (viewport && deltaY !== 0) {
+        viewport.dispatchEvent(new WheelEvent('wheel', {
+          deltaY: deltaY,
+          deltaMode: 0,
+          bubbles: true,
+          cancelable: true
+        }));
+      }
+
+      e.preventDefault();
+    }, { passive: false, capture: true });
+
+    document.addEventListener('touchend', (e) => {
+      if (touchScrollStartY !== null) {
+        touchScrollStartY = null;
+        touchScrollLastY = null;
+        touchScrollActive = false;
+      }
+    }, { passive: true, capture: true });
+
+    // ===========================================
     // スクロールモード用タッチイベント
     // ===========================================
 
