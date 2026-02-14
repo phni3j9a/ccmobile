@@ -264,11 +264,20 @@ function tmuxSessionExists(sessionName) {
   }
 }
 
-// ユニークなセッション名を生成
+// ユニークなセッション名を生成（1, 2, 3... のナンバリング）
 function generateSessionName() {
-  const timestamp = Date.now().toString(36);
-  const random = Math.random().toString(36).substring(2, 6);
-  return `${timestamp}_${random}`;
+  const sessions = listTmuxSessions();
+  const usedNumbers = new Set(
+    sessions
+      .map(s => s.displayName)
+      .filter(name => /^\d+$/.test(name))
+      .map(name => parseInt(name, 10))
+  );
+  let num = 1;
+  while (usedNumbers.has(num)) {
+    num++;
+  }
+  return String(num);
 }
 
 // ===========================================
