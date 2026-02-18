@@ -85,9 +85,10 @@ function getFullSessionName(sessionName) {
 }
 
 /**
- * ファイルパスを検証する（マークダウンファイルAPI用）
+ * ファイルパスを検証する（ファイルマネージャーAPI用）
  * HOMEディレクトリ配下のみ許可、シンボリックリンク解決後も再検証
  * @param {string} filePath - 検証するファイルパス
+ * @param {boolean} allowNew - 存在しないパスを許可するか
  * @returns {string} 検証済みの絶対パス
  * @throws {Error} 無効なパスの場合
  */
@@ -327,10 +328,39 @@ app.put('/api/sessions/:name/rename', (req, res) => {
 });
 
 // ===========================================
-// マークダウンファイルAPI
+// ファイルマネージャーAPI
 // ===========================================
 
-// ディレクトリ一覧取得（.mdファイルとディレクトリのみ）
+/**
+ * ファイルがテキストファイルかどうかを判定
+ */
+function isTextFile(fileName) {
+  const ext = path.extname(fileName).toLowerCase();
+  if (config.TEXT_EXTENSIONS.has(ext)) return true;
+  if (config.TEXT_FILENAMES.has(fileName)) return true;
+  return false;
+}
+
+/**
+ * バイナリファイルかどうかをバイトチェックで判定
+ * 先頭8KBにNULLバイトがあればバイナリ
+ */
+function isBinaryFile(filePath) {
+  try {
+    const fd = fs.openSync(filePath, 'r');
+    const buf = Buffer.alloc(8192);
+    const bytesRead = fs.readSync(fd, buf, 0, 8192, 0);
+    fs.closeSync(fd);
+    for (let i = 0; i < bytesRead; i++) {
+      if (buf[i] === 0) return true;
+    }
+    return false;
+  } catch (e) {
+    return true; // 読めなければバイナリ扱い
+  }
+}
+
+// ディレクトリ一覧取得（全ファイル）
 app.get('/api/files/browse', (req, res) => {
   try {
     const dirPath = req.query.path || process.env.HOME;
@@ -351,14 +381,15 @@ app.get('/api/files/browse', (req, res) => {
 
       if (entry.isDirectory()) {
         items.push({ name: entry.name, type: 'directory' });
-      } else if (entry.isFile() && entry.name.endsWith('.md')) {
+      } else if (entry.isFile()) {
         try {
           const fileStat = fs.statSync(path.join(validated, entry.name));
           items.push({
             name: entry.name,
             type: 'file',
             size: fileStat.size,
-            modified: fileStat.mtimeMs
+            modified: fileStat.mtimeMs,
+            isText: isTextFile(entry.name)
           });
         } catch (e) {
           // statエラーは無視
@@ -378,7 +409,7 @@ app.get('/api/files/browse', (req, res) => {
   }
 });
 
-// .mdファイルの内容取得
+// テキストファイルの内容取得
 app.get('/api/files/read', (req, res) => {
   try {
     const filePath = req.query.path;
@@ -388,17 +419,19 @@ app.get('/api/files/read', (req, res) => {
 
     const validated = validateFilePath(filePath);
 
-    if (!validated.endsWith('.md')) {
-      return res.status(400).json({ success: false, error: '.mdファイルのみ読み取り可能です' });
-    }
-
     const stat = fs.statSync(validated);
     if (!stat.isFile()) {
       return res.status(400).json({ success: false, error: 'ファイルではありません' });
     }
 
-    if (stat.size > config.MD_MAX_FILE_SIZE) {
-      return res.status(400).json({ success: false, error: `ファイルサイズが大きすぎます（上限: ${config.MD_MAX_FILE_SIZE / 1024 / 1024}MB）` });
+    // テキストファイル判定
+    const fileName = path.basename(validated);
+    if (!isTextFile(fileName) && isBinaryFile(validated)) {
+      return res.status(400).json({ success: false, error: 'バイナリファイルは読み取りできません' });
+    }
+
+    if (stat.size > config.FILE_MAX_SIZE) {
+      return res.status(400).json({ success: false, error: `ファイルサイズが大きすぎます（上限: ${config.FILE_MAX_SIZE / 1024 / 1024}MB）` });
     }
 
     const content = fs.readFileSync(validated, 'utf-8');
@@ -411,7 +444,7 @@ app.get('/api/files/read', (req, res) => {
   }
 });
 
-// 既存.mdファイルの上書き保存
+// テキストファイルの保存（新規作成・上書き）
 app.put('/api/files/write', (req, res) => {
   try {
     const { path: filePath, content } = req.body;
@@ -425,27 +458,188 @@ app.put('/api/files/write', (req, res) => {
 
     const validated = validateFilePath(filePath);
 
-    if (!validated.endsWith('.md')) {
-      return res.status(400).json({ success: false, error: '.mdファイルのみ書き込み可能です' });
-    }
-
-    // 既存ファイルのみ上書き可能
-    if (!fs.existsSync(validated) || !fs.statSync(validated).isFile()) {
-      return res.status(400).json({ success: false, error: '既存のファイルのみ上書き可能です' });
+    // テキストファイル判定
+    const fileName = path.basename(validated);
+    if (!isTextFile(fileName)) {
+      return res.status(400).json({ success: false, error: 'テキストファイルのみ書き込み可能です' });
     }
 
     const contentBytes = Buffer.byteLength(content, 'utf-8');
-    if (contentBytes > config.MD_MAX_FILE_SIZE) {
-      return res.status(400).json({ success: false, error: `コンテンツが大きすぎます（上限: ${config.MD_MAX_FILE_SIZE / 1024 / 1024}MB）` });
+    if (contentBytes > config.FILE_MAX_SIZE) {
+      return res.status(400).json({ success: false, error: `コンテンツが大きすぎます（上限: ${config.FILE_MAX_SIZE / 1024 / 1024}MB）` });
+    }
+
+    // 親ディレクトリが存在するか確認
+    const dir = path.dirname(validated);
+    if (!fs.existsSync(dir)) {
+      return res.status(400).json({ success: false, error: '親ディレクトリが存在しません' });
     }
 
     fs.writeFileSync(validated, content, 'utf-8');
-    console.log('マークダウンファイル保存:', validated);
+    console.log('ファイル保存:', validated);
 
     res.json({ success: true, path: validated, size: contentBytes });
   } catch (e) {
     res.status(400).json({ success: false, error: e.message });
   }
+});
+
+// ファイル削除
+app.delete('/api/files/delete', (req, res) => {
+  try {
+    const filePath = req.query.path;
+    if (!filePath) {
+      return res.status(400).json({ success: false, error: 'パスが指定されていません' });
+    }
+
+    const validated = validateFilePath(filePath);
+
+    const stat = fs.statSync(validated);
+    if (!stat.isFile()) {
+      return res.status(400).json({ success: false, error: 'ファイルではありません' });
+    }
+
+    fs.unlinkSync(validated);
+    console.log('ファイル削除:', validated);
+
+    res.json({ success: true });
+  } catch (e) {
+    if (e.code === 'ENOENT') {
+      return res.status(404).json({ success: false, error: 'ファイルが見つかりません' });
+    }
+    res.status(400).json({ success: false, error: e.message });
+  }
+});
+
+// ファイル名変更
+app.put('/api/files/rename', (req, res) => {
+  try {
+    const { path: filePath, newName } = req.body;
+
+    if (!filePath) {
+      return res.status(400).json({ success: false, error: 'パスが指定されていません' });
+    }
+    if (!newName || typeof newName !== 'string' || newName.trim() === '') {
+      return res.status(400).json({ success: false, error: '新しい名前を指定してください' });
+    }
+
+    // パストラバーサル防止
+    const trimmedName = newName.trim();
+    if (trimmedName.includes('/') || trimmedName.includes('\\') || trimmedName === '.' || trimmedName === '..') {
+      return res.status(400).json({ success: false, error: '無効なファイル名です' });
+    }
+
+    const validated = validateFilePath(filePath);
+
+    if (!fs.existsSync(validated)) {
+      return res.status(404).json({ success: false, error: 'ファイルが見つかりません' });
+    }
+
+    const dir = path.dirname(validated);
+    const newPath = path.join(dir, trimmedName);
+
+    // 新しいパスもHOME配下かチェック
+    validateFilePath(newPath);
+
+    if (fs.existsSync(newPath)) {
+      return res.status(400).json({ success: false, error: '同名のファイルが既に存在します' });
+    }
+
+    fs.renameSync(validated, newPath);
+    console.log('ファイル名変更:', validated, '->', newPath);
+
+    res.json({ success: true, path: newPath, name: trimmedName });
+  } catch (e) {
+    res.status(400).json({ success: false, error: e.message });
+  }
+});
+
+// ファイルダウンロード
+app.get('/api/files/download', (req, res) => {
+  try {
+    const filePath = req.query.path;
+    if (!filePath) {
+      return res.status(400).json({ success: false, error: 'パスが指定されていません' });
+    }
+
+    const validated = validateFilePath(filePath);
+
+    const stat = fs.statSync(validated);
+    if (!stat.isFile()) {
+      return res.status(400).json({ success: false, error: 'ファイルではありません' });
+    }
+
+    const fileName = path.basename(validated);
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
+    res.setHeader('Content-Length', stat.size);
+
+    const stream = fs.createReadStream(validated);
+    stream.pipe(res);
+  } catch (e) {
+    if (e.code === 'ENOENT') {
+      return res.status(404).json({ success: false, error: 'ファイルが見つかりません' });
+    }
+    res.status(400).json({ success: false, error: e.message });
+  }
+});
+
+// 汎用ファイルアップロード（ファイルマネージャー用）
+const fmStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dest = req.body.destination || process.env.HOME;
+    try {
+      const validated = validateFilePath(dest);
+      if (!fs.existsSync(validated) || !fs.statSync(validated).isDirectory()) {
+        return cb(new Error('保存先ディレクトリが存在しません'));
+      }
+      cb(null, validated);
+    } catch (e) {
+      cb(e);
+    }
+  },
+  filename: (req, file, cb) => {
+    // オリジナル名を維持、衝突時はサフィックス追加
+    let name = file.originalname;
+    const dest = req.body.destination || process.env.HOME;
+    try {
+      const validated = validateFilePath(dest);
+      let fullPath = path.join(validated, name);
+      if (fs.existsSync(fullPath)) {
+        const ext = path.extname(name);
+        const base = path.basename(name, ext);
+        let counter = 1;
+        do {
+          name = `${base}_${counter}${ext}`;
+          fullPath = path.join(validated, name);
+          counter++;
+        } while (fs.existsSync(fullPath));
+      }
+      cb(null, name);
+    } catch (e) {
+      cb(null, file.originalname);
+    }
+  }
+});
+
+const fmUpload = multer({
+  storage: fmStorage,
+  limits: { fileSize: config.FILE_UPLOAD_MAX_SIZE }
+});
+
+app.post('/api/files/upload', fmUpload.array('files', 20), (req, res) => {
+  if (!req.files || req.files.length === 0) {
+    return res.status(400).json({ success: false, error: 'ファイルが送信されませんでした' });
+  }
+
+  const results = req.files.map(f => ({
+    path: f.path,
+    filename: f.filename,
+    size: f.size,
+    mimetype: f.mimetype
+  }));
+
+  console.log('ファイルアップロード完了:', results.length, '件');
+  res.json({ success: true, files: results });
 });
 
 // ===========================================

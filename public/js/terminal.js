@@ -9,6 +9,7 @@
     const reconnectBtn = document.getElementById('reconnect-btn');
     const specialKeysToolbar = document.getElementById('special-keys-toolbar');
 
+    const scrollModeBtn = document.getElementById('scroll-mode-btn');
     const copyBtn = document.getElementById('copy-btn');
     const settingsToggle = document.getElementById('settings-toggle');
     const settingsPanel = document.getElementById('settings-panel');
@@ -90,6 +91,10 @@
     // 状態
     let usageUpdateTimer = null;
     let lastUsageData = null;
+    let scrollModeActive = false;
+    let scrollTouchStartY = 0;
+    let scrollLastY = 0;
+    let scrollTouchIdentifier = null;
     let chatInputVisible = true; // 常時表示
 
 
@@ -734,6 +739,23 @@
 
     // 特殊キーツールバー
     function sendKey(key) {
+      // スクロールモード中のPgUp/PgDn処理
+      if (scrollModeActive && (key === 'PageUp' || key === 'PageDown')) {
+        if (isAlternateBufferActive()) {
+          // alternateバッファ（Claude Code等）の場合はキーをそのまま送信
+          const keyMap = { 'PageUp': '\x1b[5~', 'PageDown': '\x1b[6~' };
+          if (socket && socket.connected) {
+            socket.emit('input', keyMap[key]);
+          }
+        } else {
+          // normalバッファの場合はxterm.jsでスクロール
+          if (term) {
+            term.scrollPages(key === 'PageUp' ? -1 : 1);
+          }
+        }
+        return;
+      }
+
       const keyMap = {
         'Escape': '\x1b',
         'Tab': '\t',
@@ -776,8 +798,8 @@
       if (!btn) return;
 
       // 特別なボタン（独自のタッチハンドラを持つ）は除外
-      if (btn.id === 'settings-toggle' || btn.id === 'image-upload-btn' ||
-          btn.id === 'md-viewer-btn') {
+      if (btn.id === 'settings-toggle' || btn.id === 'scroll-mode-btn' ||
+          btn.id === 'image-upload-btn' || btn.id === 'fm-btn') {
         return;
       }
 
@@ -799,8 +821,8 @@
       if (!btn) return;
 
       // 特別なボタン（独自のタッチハンドラを持つ）は除外
-      if (btn.id === 'settings-toggle' || btn.id === 'image-upload-btn' ||
-          btn.id === 'md-viewer-btn') {
+      if (btn.id === 'settings-toggle' || btn.id === 'scroll-mode-btn' ||
+          btn.id === 'image-upload-btn' || btn.id === 'fm-btn') {
         return;
       }
 
@@ -845,8 +867,8 @@
       if (!btn) return;
 
       // 特別なボタン（独自のハンドラを持つ）は除外
-      if (btn.id === 'settings-toggle' || btn.id === 'image-upload-btn' ||
-          btn.id === 'md-viewer-btn') {
+      if (btn.id === 'settings-toggle' || btn.id === 'scroll-mode-btn' ||
+          btn.id === 'image-upload-btn' || btn.id === 'fm-btn') {
         return;
       }
 
@@ -1201,119 +1223,174 @@
     });
 
     // ===========================================
-    // マークダウンビューア/エディタ機能
+    // ファイルマネージャー機能
     // ===========================================
 
-    const mdModal = document.getElementById('md-modal');
-    const mdModalOverlay = document.getElementById('md-modal-overlay');
-    const mdBackBtn = document.getElementById('md-back-btn');
-    const mdTitle = document.getElementById('md-title');
-    const mdCloseBtn = document.getElementById('md-close-btn');
-    const mdModeToggle = document.getElementById('md-mode-toggle');
-    const mdSaveBtn = document.getElementById('md-save-btn');
-    const mdBrowser = document.getElementById('md-browser');
-    const mdBreadcrumb = document.getElementById('md-breadcrumb');
-    const mdFileList = document.getElementById('md-file-list');
-    const mdViewer = document.getElementById('md-viewer');
-    const mdRendered = document.getElementById('md-rendered');
-    const mdEditor = document.getElementById('md-editor');
-    const mdEditorTextarea = document.getElementById('md-editor-textarea');
-    const mdViewerBtn = document.getElementById('md-viewer-btn');
-    const mdHiddenToggle = document.getElementById('md-hidden-toggle');
+    const fmModal = document.getElementById('fm-modal');
+    const fmModalOverlay = document.getElementById('fm-modal-overlay');
+    const fmBackBtn = document.getElementById('fm-back-btn');
+    const fmTitle = document.getElementById('fm-title');
+    const fmCloseBtn = document.getElementById('fm-close-btn');
+    const fmModeToggle = document.getElementById('fm-mode-toggle');
+    const fmSaveBtn = document.getElementById('fm-save-btn');
+    const fmBrowser = document.getElementById('fm-browser');
+    const fmBreadcrumb = document.getElementById('fm-breadcrumb');
+    const fmFileList = document.getElementById('fm-file-list');
+    const fmViewer = document.getElementById('fm-viewer');
+    const fmRendered = document.getElementById('fm-rendered');
+    const fmEditor = document.getElementById('fm-editor');
+    const fmEditorTextarea = document.getElementById('fm-editor-textarea');
+    const fmBtn = document.getElementById('fm-btn');
+    const fmHiddenToggle = document.getElementById('fm-hidden-toggle');
+    const fmUploadBtn = document.getElementById('fm-upload-btn');
+    const fmNewFileBtn = document.getElementById('fm-new-file-btn');
+    const fmFileInput = document.getElementById('fm-file-input');
 
-    // マークダウン機能の状態
-    let mdCurrentPath = null; // 現在のブラウズパス
-    let mdCurrentFile = null; // 現在開いているファイルパス
-    let mdCurrentContent = ''; // 現在のファイル内容（保存済み）
-    let mdViewState = 'browser'; // 'browser' | 'viewer' | 'editor'
-    let mdIsDirty = false; // 未保存の変更があるか
-    let mdShowHidden = false; // 隠しファイル表示
+    // ボトムシート要素
+    const fmSheetOverlay = document.getElementById('fm-sheet-overlay');
+    const fmBottomSheet = document.getElementById('fm-bottom-sheet');
+    const fmSheetFilename = document.getElementById('fm-sheet-filename');
+    const fmSheetRename = document.getElementById('fm-sheet-rename');
+    const fmSheetDownload = document.getElementById('fm-sheet-download');
+    const fmSheetDelete = document.getElementById('fm-sheet-delete');
+
+    // ファイルマネージャー状態
+    let fmCurrentPath = null;
+    let fmCurrentFile = null;
+    let fmCurrentContent = '';
+    let fmViewState = 'browser'; // 'browser' | 'viewer' | 'editor'
+    let fmIsDirty = false;
+    let fmShowHidden = false;
+    let fmSheetTargetPath = null; // ボトムシートの対象ファイルパス
+
+    // テキストファイル拡張子（クライアント側判定）
+    const TEXT_EXTENSIONS = new Set([
+      '.md', '.txt', '.json', '.js', '.ts', '.jsx', '.tsx', '.mjs', '.cjs',
+      '.py', '.sh', '.bash', '.zsh', '.fish',
+      '.yml', '.yaml', '.toml', '.ini', '.cfg', '.conf', '.env',
+      '.xml', '.html', '.htm', '.css', '.scss', '.less',
+      '.sql', '.csv', '.tsv', '.log',
+      '.gitignore', '.dockerignore', '.editorconfig', '.eslintrc', '.prettierrc',
+      '.c', '.cpp', '.h', '.hpp', '.java', '.go', '.rs', '.rb', '.php', '.swift', '.kt',
+      '.r', '.m', '.mm', '.pl', '.pm', '.lua', '.vim', '.el',
+      '.patch', '.diff', '.cmake', '.gradle', '.properties',
+      '.service', '.socket', '.timer', '.mount'
+    ]);
+
+    const TEXT_FILENAMES = new Set([
+      'Makefile', 'Dockerfile', 'Vagrantfile', 'Gemfile', 'Rakefile',
+      'LICENSE', 'LICENCE', 'AUTHORS', 'CONTRIBUTORS', 'CHANGELOG',
+      'README', 'INSTALL', 'TODO', 'NOTICE', '.gitattributes'
+    ]);
+
+    const IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp', '.ico']);
+    const CODE_EXTENSIONS = new Set(['.js', '.ts', '.jsx', '.tsx', '.mjs', '.cjs', '.py', '.sh', '.bash', '.zsh', '.c', '.cpp', '.h', '.hpp', '.java', '.go', '.rs', '.rb', '.php', '.swift', '.kt', '.lua', '.pl', '.r', '.m']);
+
+    function getFileExt(name) {
+      const idx = name.lastIndexOf('.');
+      return idx >= 0 ? name.slice(idx).toLowerCase() : '';
+    }
+
+    function isTextByName(name) {
+      return TEXT_EXTENSIONS.has(getFileExt(name)) || TEXT_FILENAMES.has(name);
+    }
+
+    function getFileType(name, isText) {
+      const ext = getFileExt(name);
+      if (ext === '.md') return 'md';
+      if (ext === '.json') return 'json';
+      if (CODE_EXTENSIONS.has(ext)) return 'code';
+      if (IMAGE_EXTENSIONS.has(ext)) return 'image';
+      if (isText || isTextByName(name)) return 'text';
+      return 'binary';
+    }
+
+    function getFileIcon(name, type, fileType) {
+      if (type === 'directory') return 'folder';
+      if (fileType === 'md') return 'file-text';
+      if (fileType === 'json') return 'file-json';
+      if (fileType === 'code') return 'file-code';
+      if (fileType === 'image') return 'file-image';
+      return 'file';
+    }
 
     // markedの設定
     function initMarked() {
       if (typeof marked !== 'undefined') {
-        marked.setOptions({
-          gfm: true,
-          breaks: true
-        });
+        marked.setOptions({ gfm: true, breaks: true });
       }
     }
 
     // モーダルを開く
-    function showMdModal() {
+    function showFmModal() {
       if (term && term.textarea) {
         term.textarea.blur();
       }
-      mdModal.classList.remove('hidden');
-      mdModalOverlay.classList.remove('hidden');
+      fmModal.classList.remove('hidden');
+      fmModalOverlay.classList.remove('hidden');
       initMarked();
-      // ブラウザモードで開始
-      mdCurrentPath = null;
-      mdCurrentFile = null;
-      mdIsDirty = false;
-      setMdViewState('browser');
-      browseMdDirectory(null);
-      // Lucide Iconsを初期化
+      fmCurrentPath = null;
+      fmCurrentFile = null;
+      fmIsDirty = false;
+      setFmViewState('browser');
+      browseFmDirectory(null);
       if (typeof lucide !== 'undefined' && lucide.createIcons) {
         setTimeout(() => lucide.createIcons(), 50);
       }
     }
 
     // モーダルを閉じる
-    function closeMdModal() {
-      if (mdIsDirty) {
+    function closeFmModal() {
+      if (fmIsDirty) {
         if (!confirm('未保存の変更があります。閉じますか？')) {
           return;
         }
       }
-      mdModal.classList.add('hidden');
-      mdModalOverlay.classList.add('hidden');
-      mdCurrentFile = null;
-      mdCurrentPath = null;
-      mdIsDirty = false;
+      fmModal.classList.add('hidden');
+      fmModalOverlay.classList.add('hidden');
+      fmCurrentFile = null;
+      fmCurrentPath = null;
+      fmIsDirty = false;
     }
 
     // ビューステート切り替え
-    function setMdViewState(state) {
-      mdViewState = state;
-      mdBrowser.classList.toggle('hidden', state !== 'browser');
-      mdViewer.classList.toggle('hidden', state !== 'viewer');
-      mdEditor.classList.toggle('hidden', state !== 'editor');
+    function setFmViewState(state) {
+      fmViewState = state;
+      fmBrowser.classList.toggle('hidden', state !== 'browser');
+      fmViewer.classList.toggle('hidden', state !== 'viewer');
+      fmEditor.classList.toggle('hidden', state !== 'editor');
 
       // ヘッダーボタン表示制御
-      mdHiddenToggle.classList.toggle('hidden', state !== 'browser');
-      mdModeToggle.classList.toggle('hidden', state === 'browser');
-      mdSaveBtn.classList.toggle('hidden', state !== 'editor');
+      fmHiddenToggle.classList.toggle('hidden', state !== 'browser');
+      fmModeToggle.classList.toggle('hidden', state === 'browser');
+      fmSaveBtn.classList.toggle('hidden', state !== 'editor');
 
-      // 戻るボタンの表示（ブラウザモードではパスがHOMEの場合非表示）
-      mdBackBtn.style.visibility = state === 'browser' ? 'visible' : 'visible';
+      fmBackBtn.style.visibility = 'visible';
 
       // モード切り替えボタンのアイコンを更新
       if (state === 'viewer') {
-        mdModeToggle.innerHTML = '<i data-lucide="pencil" class="icon"></i>';
-        mdModeToggle.setAttribute('aria-label', '編集モードに切り替え');
+        fmModeToggle.innerHTML = '<i data-lucide="pencil" class="icon"></i>';
+        fmModeToggle.setAttribute('aria-label', '編集モードに切り替え');
       } else if (state === 'editor') {
-        mdModeToggle.innerHTML = '<i data-lucide="eye" class="icon"></i>';
-        mdModeToggle.setAttribute('aria-label', '閲覧モードに切り替え');
+        fmModeToggle.innerHTML = '<i data-lucide="eye" class="icon"></i>';
+        fmModeToggle.setAttribute('aria-label', '閲覧モードに切り替え');
       }
 
-      // タイトル更新
       if (state === 'browser') {
-        mdTitle.textContent = 'マークダウン';
+        fmTitle.textContent = 'ファイルマネージャー';
       }
 
-      // Lucide Icons再初期化
       if (typeof lucide !== 'undefined' && lucide.createIcons) {
         setTimeout(() => lucide.createIcons(), 10);
       }
     }
 
     // ディレクトリ一覧を取得・表示
-    async function browseMdDirectory(dirPath) {
+    async function browseFmDirectory(dirPath) {
       try {
         const queryParams = new URLSearchParams();
         if (dirPath) queryParams.set('path', dirPath);
-        if (mdShowHidden) queryParams.set('showHidden', 'true');
+        if (fmShowHidden) queryParams.set('showHidden', 'true');
         const params = queryParams.toString() ? `?${queryParams.toString()}` : '';
         const response = await fetch(`/api/files/browse${params}`);
         const data = await response.json();
@@ -1323,91 +1400,167 @@
           return;
         }
 
-        mdCurrentPath = data.path;
-        renderMdBreadcrumb(data.path);
-        renderMdFileList(data.items, data.path);
+        fmCurrentPath = data.path;
+        renderFmBreadcrumb(data.path);
+        renderFmFileList(data.items, data.path);
       } catch (e) {
         showToast('ファイル一覧の取得に失敗しました', 'error');
       }
     }
 
     // パンくずリスト描画
-    function renderMdBreadcrumb(dirPath) {
-      mdBreadcrumb.innerHTML = '';
-      const home = dirPath.split('/').slice(0, 3).join('/'); // /home/user
+    function renderFmBreadcrumb(dirPath) {
+      fmBreadcrumb.innerHTML = '';
+      const home = dirPath.split('/').slice(0, 3).join('/');
       const relative = dirPath.startsWith(home) ? dirPath.slice(home.length) : dirPath;
       const parts = relative.split('/').filter(Boolean);
 
-      // ホームアイコン
       const homeBtn = document.createElement('button');
-      homeBtn.className = 'md-breadcrumb-item';
+      homeBtn.className = 'fm-breadcrumb-item';
       homeBtn.textContent = '~';
-      homeBtn.addEventListener('click', () => browseMdDirectory(null));
-      mdBreadcrumb.appendChild(homeBtn);
+      homeBtn.addEventListener('click', () => browseFmDirectory(null));
+      fmBreadcrumb.appendChild(homeBtn);
 
-      // 各パーツ
       let currentPath = home;
       parts.forEach((part, i) => {
         currentPath += '/' + part;
 
         const sep = document.createElement('span');
-        sep.className = 'md-breadcrumb-sep';
+        sep.className = 'fm-breadcrumb-sep';
         sep.textContent = '/';
-        mdBreadcrumb.appendChild(sep);
+        fmBreadcrumb.appendChild(sep);
 
         if (i === parts.length - 1) {
           const current = document.createElement('span');
-          current.className = 'md-breadcrumb-current';
+          current.className = 'fm-breadcrumb-current';
           current.textContent = part;
-          mdBreadcrumb.appendChild(current);
+          fmBreadcrumb.appendChild(current);
         } else {
           const btn = document.createElement('button');
-          btn.className = 'md-breadcrumb-item';
+          btn.className = 'fm-breadcrumb-item';
           btn.textContent = part;
           const pathCopy = currentPath;
-          btn.addEventListener('click', () => browseMdDirectory(pathCopy));
-          mdBreadcrumb.appendChild(btn);
+          btn.addEventListener('click', () => browseFmDirectory(pathCopy));
+          fmBreadcrumb.appendChild(btn);
         }
       });
     }
 
     // ファイル一覧描画
-    function renderMdFileList(items, basePath) {
-      mdFileList.innerHTML = '';
+    function renderFmFileList(items, basePath) {
+      fmFileList.innerHTML = '';
 
       if (items.length === 0) {
         const empty = document.createElement('div');
-        empty.className = 'md-empty';
-        empty.textContent = '.mdファイルが見つかりません';
-        mdFileList.appendChild(empty);
+        empty.className = 'fm-empty';
+        empty.textContent = 'ファイルが見つかりません';
+        fmFileList.appendChild(empty);
         return;
       }
 
       items.forEach(item => {
-        const el = document.createElement('button');
-        el.className = 'md-file-item';
+        const el = document.createElement('div');
+        el.className = 'fm-file-item';
         el.setAttribute('data-type', item.type);
 
-        const iconName = item.type === 'directory' ? 'folder' : 'file-text';
+        const fileType = item.type === 'directory' ? 'directory' : getFileType(item.name, item.isText);
+        el.setAttribute('data-filetype', fileType);
+
+        const iconName = getFileIcon(item.name, item.type, fileType);
         el.innerHTML = `
-          <i data-lucide="${iconName}" class="md-file-icon"></i>
-          <span class="md-file-name">${escapeHtml(item.name)}</span>
-          ${item.size !== undefined ? `<span class="md-file-meta">${formatFileSize(item.size)}</span>` : ''}
+          <i data-lucide="${iconName}" class="fm-file-icon"></i>
+          <span class="fm-file-name">${escapeHtml(item.name)}</span>
+          ${item.size !== undefined ? `<span class="fm-file-meta">${formatFileSize(item.size)}</span>` : ''}
         `;
 
         const fullPath = basePath + '/' + item.name;
+
+        // タップ/長押し用の状態
+        let longPressTimer = null;
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let longPressTriggered = false;
+
         if (item.type === 'directory') {
-          el.addEventListener('click', () => browseMdDirectory(fullPath));
+          // ディレクトリ: タップで開く
+          el.addEventListener('click', () => browseFmDirectory(fullPath));
         } else {
-          el.addEventListener('click', () => openMdFile(fullPath));
+          // ファイル: タップで開く/ダウンロード、長押しでボトムシート
+          el.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            longPressTriggered = false;
+
+            longPressTimer = setTimeout(() => {
+              longPressTriggered = true;
+              // 視覚フィードバック
+              el.classList.add('long-press-active');
+              setTimeout(() => el.classList.remove('long-press-active'), 150);
+              // ハプティック
+              if (navigator.vibrate) navigator.vibrate(50);
+              // ボトムシート表示
+              showFmBottomSheet(fullPath, item.name);
+              longPressTimer = null;
+            }, 500);
+          }, { passive: true });
+
+          el.addEventListener('touchmove', (e) => {
+            if (longPressTimer) {
+              const dx = Math.abs(e.touches[0].clientX - touchStartX);
+              const dy = Math.abs(e.touches[0].clientY - touchStartY);
+              if (dx > 10 || dy > 10) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+              }
+            }
+          }, { passive: true });
+
+          el.addEventListener('touchend', (e) => {
+            if (longPressTimer) {
+              clearTimeout(longPressTimer);
+              longPressTimer = null;
+            }
+            if (longPressTriggered) {
+              longPressTriggered = false;
+              return; // 長押し後はタップ処理しない
+            }
+            // タップ判定
+            const dx = Math.abs(e.changedTouches[0].clientX - touchStartX);
+            const dy = Math.abs(e.changedTouches[0].clientY - touchStartY);
+            if (dx < 10 && dy < 10) {
+              handleFileOpen(fullPath, item.name, item.isText, fileType);
+            }
+          }, { passive: true });
+
+          el.addEventListener('touchcancel', () => {
+            if (longPressTimer) {
+              clearTimeout(longPressTimer);
+              longPressTimer = null;
+            }
+          }, { passive: true });
+
+          // デスクトップ向け: クリックで開く
+          el.addEventListener('click', (e) => {
+            if (e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) return;
+            handleFileOpen(fullPath, item.name, item.isText, fileType);
+          });
         }
 
-        mdFileList.appendChild(el);
+        fmFileList.appendChild(el);
       });
 
-      // Lucide Icons再初期化
       if (typeof lucide !== 'undefined' && lucide.createIcons) {
         setTimeout(() => lucide.createIcons(), 10);
+      }
+    }
+
+    // ファイルを開く処理
+    function handleFileOpen(fullPath, name, isText, fileType) {
+      if (isText || isTextByName(name)) {
+        openFmFile(fullPath, name);
+      } else {
+        // バイナリファイルはダウンロード
+        downloadFile(fullPath);
       }
     }
 
@@ -1419,7 +1572,7 @@
     }
 
     // ファイルを開く（閲覧モード）
-    async function openMdFile(filePath) {
+    async function openFmFile(filePath, fileName) {
       try {
         const response = await fetch(`/api/files/read?path=${encodeURIComponent(filePath)}`);
         const data = await response.json();
@@ -1429,67 +1582,93 @@
           return;
         }
 
-        mdCurrentFile = data.path;
-        mdCurrentContent = data.content;
-        mdIsDirty = false;
+        fmCurrentFile = data.path;
+        fmCurrentContent = data.content;
+        fmIsDirty = false;
 
-        // ファイル名をタイトルに表示
-        const fileName = filePath.split('/').pop();
-        mdTitle.textContent = fileName;
+        const name = fileName || filePath.split('/').pop();
+        fmTitle.textContent = name;
 
-        // マークダウンをレンダリング
-        renderMdContent(data.content);
-        setMdViewState('viewer');
+        // .mdファイルはマークダウンレンダリング、それ以外はコード表示
+        if (name.endsWith('.md')) {
+          renderFmMarkdown(data.content);
+        } else {
+          renderFmCode(data.content, name);
+        }
+        setFmViewState('viewer');
       } catch (e) {
         showToast('ファイルの読み込みに失敗しました', 'error');
       }
     }
 
     // マークダウンをHTMLにレンダリング
-    function renderMdContent(content) {
+    function renderFmMarkdown(content) {
       if (typeof marked !== 'undefined') {
-        mdRendered.innerHTML = marked.parse(content);
-        // シンタックスハイライト
+        fmRendered.innerHTML = marked.parse(content);
         if (typeof hljs !== 'undefined') {
-          mdRendered.querySelectorAll('pre code').forEach(block => {
+          fmRendered.querySelectorAll('pre code').forEach(block => {
             hljs.highlightElement(block);
           });
         }
       } else {
-        mdRendered.textContent = content;
+        fmRendered.textContent = content;
       }
     }
 
-    // モード切り替え（閲覧↔編集）
-    function toggleMdMode() {
-      if (mdViewState === 'viewer') {
-        // 閲覧 → 編集
-        mdEditorTextarea.value = mdCurrentContent;
-        if (mdIsDirty) {
-          // 未保存の編集内容がある場合はそちらを表示
-          // （通常はないが安全のため）
+    // コードをシンタックスハイライト付きで表示
+    function renderFmCode(content, fileName) {
+      const ext = getFileExt(fileName).replace('.', '');
+      const langMap = {
+        'js': 'javascript', 'ts': 'typescript', 'jsx': 'javascript', 'tsx': 'typescript',
+        'mjs': 'javascript', 'cjs': 'javascript', 'py': 'python', 'sh': 'bash',
+        'bash': 'bash', 'zsh': 'bash', 'yml': 'yaml', 'yaml': 'yaml',
+        'md': 'markdown', 'rb': 'ruby', 'rs': 'rust', 'kt': 'kotlin',
+        'htm': 'html', 'scss': 'scss', 'less': 'less'
+      };
+      const lang = langMap[ext] || ext;
+
+      let highlighted = escapeHtml(content);
+      if (typeof hljs !== 'undefined' && lang) {
+        try {
+          const result = hljs.highlight(content, { language: lang, ignoreIllegals: true });
+          highlighted = result.value;
+        } catch (e) {
+          // ハイライト失敗時はプレーンテキスト
         }
-        setMdViewState('editor');
-        mdEditorTextarea.focus();
-      } else if (mdViewState === 'editor') {
-        // 編集 → 閲覧（プレビュー更新）
-        const editedContent = mdEditorTextarea.value;
-        renderMdContent(editedContent);
-        setMdViewState('viewer');
+      }
+
+      fmRendered.innerHTML = `<pre><code class="hljs language-${escapeHtml(lang)}">${highlighted}</code></pre>`;
+    }
+
+    // モード切り替え（閲覧↔編集）
+    function toggleFmMode() {
+      if (fmViewState === 'viewer') {
+        fmEditorTextarea.value = fmIsDirty ? fmEditorTextarea.value : fmCurrentContent;
+        setFmViewState('editor');
+        fmEditorTextarea.focus();
+      } else if (fmViewState === 'editor') {
+        const editedContent = fmEditorTextarea.value;
+        const name = fmCurrentFile ? fmCurrentFile.split('/').pop() : '';
+        if (name.endsWith('.md')) {
+          renderFmMarkdown(editedContent);
+        } else {
+          renderFmCode(editedContent, name);
+        }
+        setFmViewState('viewer');
       }
     }
 
     // ファイルを保存
-    async function saveMdFile() {
-      if (!mdCurrentFile) return;
+    async function saveFmFile() {
+      if (!fmCurrentFile) return;
 
-      const content = mdEditorTextarea.value;
+      const content = fmEditorTextarea.value;
 
       try {
         const response = await fetch('/api/files/write', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ path: mdCurrentFile, content })
+          body: JSON.stringify({ path: fmCurrentFile, content })
         });
         const data = await response.json();
 
@@ -1498,113 +1677,297 @@
           return;
         }
 
-        mdCurrentContent = content;
-        mdIsDirty = false;
+        fmCurrentContent = content;
+        fmIsDirty = false;
         showToast('保存しました', 'success', 1500);
-        log('マークダウン保存: ' + mdCurrentFile);
+        log('ファイル保存: ' + fmCurrentFile);
       } catch (e) {
         showToast('保存に失敗しました: ' + e.message, 'error');
       }
     }
 
     // 戻るボタン処理
-    function mdGoBack() {
-      if (mdViewState === 'viewer' || mdViewState === 'editor') {
-        if (mdIsDirty) {
+    function fmGoBack() {
+      if (fmViewState === 'viewer' || fmViewState === 'editor') {
+        if (fmIsDirty) {
           if (!confirm('未保存の変更があります。戻りますか？')) {
             return;
           }
         }
-        mdCurrentFile = null;
-        mdIsDirty = false;
-        setMdViewState('browser');
-        // 現在のディレクトリを再読み込み
-        browseMdDirectory(mdCurrentPath);
-      } else if (mdViewState === 'browser' && mdCurrentPath) {
-        // 親ディレクトリに移動
-        const parent = mdCurrentPath.split('/').slice(0, -1).join('/');
-        const home = (mdCurrentPath.split('/').slice(0, 3).join('/'));
+        fmCurrentFile = null;
+        fmIsDirty = false;
+        setFmViewState('browser');
+        browseFmDirectory(fmCurrentPath);
+      } else if (fmViewState === 'browser' && fmCurrentPath) {
+        const parent = fmCurrentPath.split('/').slice(0, -1).join('/');
+        const home = fmCurrentPath.split('/').slice(0, 3).join('/');
         if (parent.length >= home.length) {
-          browseMdDirectory(parent);
+          browseFmDirectory(parent);
         }
       }
     }
 
+    // ボトムシート表示
+    function showFmBottomSheet(filePath, fileName) {
+      fmSheetTargetPath = filePath;
+      fmSheetFilename.textContent = fileName;
+      fmSheetOverlay.classList.remove('hidden');
+      fmBottomSheet.classList.remove('hidden');
+      if (typeof lucide !== 'undefined' && lucide.createIcons) {
+        setTimeout(() => lucide.createIcons(), 10);
+      }
+    }
+
+    // ボトムシート非表示
+    function hideFmBottomSheet() {
+      fmBottomSheet.classList.add('hidden');
+      fmSheetOverlay.classList.add('hidden');
+      fmSheetTargetPath = null;
+    }
+
+    // ダウンロード
+    function downloadFile(filePath) {
+      window.open('/api/files/download?path=' + encodeURIComponent(filePath), '_blank');
+    }
+
+    // 削除
+    async function deleteFile(filePath) {
+      if (!confirm('このファイルを削除しますか？\n' + filePath.split('/').pop())) {
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/files/delete?path=' + encodeURIComponent(filePath), {
+          method: 'DELETE'
+        });
+        const data = await response.json();
+
+        if (!data.success) {
+          showToast(data.error || '削除に失敗しました', 'error');
+          return;
+        }
+
+        showToast('ファイルを削除しました', 'success');
+        browseFmDirectory(fmCurrentPath);
+      } catch (e) {
+        showToast('削除に失敗しました: ' + e.message, 'error');
+      }
+    }
+
+    // 名前変更
+    async function renameFile(filePath) {
+      const currentName = filePath.split('/').pop();
+      const newName = prompt('新しいファイル名を入力:', currentName);
+
+      if (!newName || newName.trim() === '' || newName.trim() === currentName) {
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/files/rename', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: filePath, newName: newName.trim() })
+        });
+        const data = await response.json();
+
+        if (!data.success) {
+          showToast(data.error || '名前変更に失敗しました', 'error');
+          return;
+        }
+
+        showToast('名前を変更しました', 'success');
+        browseFmDirectory(fmCurrentPath);
+      } catch (e) {
+        showToast('名前変更に失敗しました: ' + e.message, 'error');
+      }
+    }
+
+    // アップロード
+    async function uploadToCurrentDir(files) {
+      if (!files || files.length === 0 || !fmCurrentPath) return;
+
+      const formData = new FormData();
+      formData.append('destination', fmCurrentPath);
+      for (const file of files) {
+        formData.append('files', file);
+      }
+
+      try {
+        showToast('アップロード中...', 'info', 2000);
+
+        const response = await fetch('/api/files/upload', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await response.json();
+
+        if (!data.success) {
+          showToast(data.error || 'アップロードに失敗しました', 'error');
+          return;
+        }
+
+        showToast(`${data.files.length}件のファイルをアップロードしました`, 'success');
+        browseFmDirectory(fmCurrentPath);
+      } catch (e) {
+        showToast('アップロードに失敗しました: ' + e.message, 'error');
+      }
+    }
+
+    // 新規ファイル作成
+    async function createNewFile() {
+      const fileName = prompt('新しいファイル名を入力:');
+      if (!fileName || fileName.trim() === '') return;
+
+      const trimmed = fileName.trim();
+      if (trimmed.includes('/') || trimmed.includes('\\')) {
+        showToast('ファイル名にスラッシュは使用できません', 'error');
+        return;
+      }
+
+      const filePath = fmCurrentPath + '/' + trimmed;
+
+      try {
+        const response = await fetch('/api/files/write', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: filePath, content: '' })
+        });
+        const data = await response.json();
+
+        if (!data.success) {
+          showToast(data.error || 'ファイル作成に失敗しました', 'error');
+          return;
+        }
+
+        showToast('ファイルを作成しました', 'success');
+        browseFmDirectory(fmCurrentPath);
+      } catch (e) {
+        showToast('ファイル作成に失敗しました: ' + e.message, 'error');
+      }
+    }
+
     // 編集検出
-    if (mdEditorTextarea) {
-      mdEditorTextarea.addEventListener('input', () => {
-        mdIsDirty = mdEditorTextarea.value !== mdCurrentContent;
+    if (fmEditorTextarea) {
+      fmEditorTextarea.addEventListener('input', () => {
+        fmIsDirty = fmEditorTextarea.value !== fmCurrentContent;
       });
     }
 
     // イベントリスナー
-    if (mdCloseBtn) {
-      mdCloseBtn.addEventListener('click', closeMdModal);
+    if (fmCloseBtn) {
+      fmCloseBtn.addEventListener('click', closeFmModal);
     }
-    if (mdModalOverlay) {
-      mdModalOverlay.addEventListener('click', closeMdModal);
+    if (fmModalOverlay) {
+      fmModalOverlay.addEventListener('click', closeFmModal);
     }
-    if (mdBackBtn) {
-      mdBackBtn.addEventListener('click', mdGoBack);
+    if (fmBackBtn) {
+      fmBackBtn.addEventListener('click', fmGoBack);
     }
-    if (mdModeToggle) {
-      mdModeToggle.addEventListener('click', toggleMdMode);
+    if (fmModeToggle) {
+      fmModeToggle.addEventListener('click', toggleFmMode);
     }
-    if (mdSaveBtn) {
-      mdSaveBtn.addEventListener('click', saveMdFile);
+    if (fmSaveBtn) {
+      fmSaveBtn.addEventListener('click', saveFmFile);
     }
-    if (mdHiddenToggle) {
-      mdHiddenToggle.addEventListener('click', () => {
-        mdShowHidden = !mdShowHidden;
-        mdHiddenToggle.classList.toggle('md-hidden-active', mdShowHidden);
-        mdHiddenToggle.innerHTML = mdShowHidden
+    if (fmHiddenToggle) {
+      fmHiddenToggle.addEventListener('click', () => {
+        fmShowHidden = !fmShowHidden;
+        fmHiddenToggle.classList.toggle('fm-hidden-active', fmShowHidden);
+        fmHiddenToggle.innerHTML = fmShowHidden
           ? '<i data-lucide="eye" class="icon"></i>'
           : '<i data-lucide="eye-off" class="icon"></i>';
-        mdHiddenToggle.setAttribute('aria-label', mdShowHidden ? '隠しファイルを非表示' : '隠しファイルを表示');
+        fmHiddenToggle.setAttribute('aria-label', fmShowHidden ? '隠しファイルを非表示' : '隠しファイルを表示');
         if (typeof lucide !== 'undefined' && lucide.createIcons) {
           setTimeout(() => lucide.createIcons(), 10);
         }
-        browseMdDirectory(mdCurrentPath);
+        browseFmDirectory(fmCurrentPath);
+      });
+    }
+
+    // アップロードボタン
+    if (fmUploadBtn) {
+      fmUploadBtn.addEventListener('click', () => {
+        fmFileInput.click();
+      });
+    }
+    if (fmFileInput) {
+      fmFileInput.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files.length > 0) {
+          uploadToCurrentDir(e.target.files);
+          fmFileInput.value = ''; // リセット
+        }
+      });
+    }
+
+    // 新規ファイルボタン
+    if (fmNewFileBtn) {
+      fmNewFileBtn.addEventListener('click', createNewFile);
+    }
+
+    // ボトムシートイベント
+    if (fmSheetOverlay) {
+      fmSheetOverlay.addEventListener('click', hideFmBottomSheet);
+    }
+    if (fmSheetRename) {
+      fmSheetRename.addEventListener('click', () => {
+        const p = fmSheetTargetPath;
+        hideFmBottomSheet();
+        if (p) renameFile(p);
+      });
+    }
+    if (fmSheetDownload) {
+      fmSheetDownload.addEventListener('click', () => {
+        const p = fmSheetTargetPath;
+        hideFmBottomSheet();
+        if (p) downloadFile(p);
+      });
+    }
+    if (fmSheetDelete) {
+      fmSheetDelete.addEventListener('click', () => {
+        const p = fmSheetTargetPath;
+        hideFmBottomSheet();
+        if (p) deleteFile(p);
       });
     }
 
     // Escキーでモーダルを閉じる
-    if (mdModal) {
-      mdModal.addEventListener('keydown', (e) => {
+    if (fmModal) {
+      fmModal.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
           e.preventDefault();
-          if (mdViewState === 'viewer' || mdViewState === 'editor') {
-            mdGoBack();
+          if (fmViewState === 'viewer' || fmViewState === 'editor') {
+            fmGoBack();
           } else {
-            closeMdModal();
+            closeFmModal();
           }
         }
       });
     }
 
-    // マークダウンボタン: タップ/スワイプ判定
-    let mdBtnStartX = 0;
-    let mdBtnStartY = 0;
+    // ファイルマネージャーボタン: タップ/スワイプ判定
+    let fmBtnStartX = 0;
+    let fmBtnStartY = 0;
 
-    if (mdViewerBtn) {
-      mdViewerBtn.addEventListener('touchstart', (e) => {
-        mdBtnStartX = e.touches[0].clientX;
-        mdBtnStartY = e.touches[0].clientY;
+    if (fmBtn) {
+      fmBtn.addEventListener('touchstart', (e) => {
+        fmBtnStartX = e.touches[0].clientX;
+        fmBtnStartY = e.touches[0].clientY;
       }, { passive: true });
 
-      mdViewerBtn.addEventListener('touchend', (e) => {
-        const deltaX = Math.abs(e.changedTouches[0].clientX - mdBtnStartX);
-        const deltaY = Math.abs(e.changedTouches[0].clientY - mdBtnStartY);
+      fmBtn.addEventListener('touchend', (e) => {
+        const deltaX = Math.abs(e.changedTouches[0].clientX - fmBtnStartX);
+        const deltaY = Math.abs(e.changedTouches[0].clientY - fmBtnStartY);
         if (deltaX > 10 || deltaY > 10) return;
 
         e.preventDefault();
-        showMdModal();
+        showFmModal();
       });
 
-      mdViewerBtn.addEventListener('click', (e) => {
+      fmBtn.addEventListener('click', (e) => {
         if (e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) return;
         e.preventDefault();
-        showMdModal();
+        showFmModal();
       });
     }
 
@@ -1660,6 +2023,67 @@
         return; // restoreFocusはshowPasteModal内で処理済み
       }
       if (restoreFocus) {
+        term.focus();
+      }
+    }
+
+    // スクロールモード（tmuxコピーモード）ボタン: キーボード状態維持 + タップ/スワイプ判定
+    let scrollBtnWasFocused = false;
+    let scrollBtnStartX = 0;
+    let scrollBtnStartY = 0;
+
+    scrollModeBtn.addEventListener('touchstart', (e) => {
+      scrollBtnWasFocused = document.activeElement === term.textarea;
+      scrollBtnStartX = e.touches[0].clientX;
+      scrollBtnStartY = e.touches[0].clientY;
+    }, { passive: true });
+
+    scrollModeBtn.addEventListener('touchend', (e) => {
+      const deltaX = Math.abs(e.changedTouches[0].clientX - scrollBtnStartX);
+      const deltaY = Math.abs(e.changedTouches[0].clientY - scrollBtnStartY);
+      if (deltaX > 10 || deltaY > 10) return; // スワイプは無視
+
+      e.preventDefault();
+      toggleScrollMode(scrollBtnWasFocused);
+    });
+
+    scrollModeBtn.addEventListener('click', (e) => {
+      if (e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) return;
+      e.preventDefault();
+      toggleScrollMode(false); // デスクトップではスクロール操作に専念
+    });
+
+    function toggleScrollMode(restoreFocus) {
+      if (!scrollModeActive) {
+        // スクロールモードON
+        scrollModeActive = true;
+        scrollModeBtn.classList.add('active');
+        scrollModeBtn.setAttribute('aria-pressed', 'true');
+        terminalElement.classList.add('scroll-mode');
+        // tmuxコピーモードに入る
+        if (socket && socket.connected) {
+          socket.emit('input', '\x02['); // Ctrl+b [
+        }
+        log('スクロールモード ON (tmuxコピーモード)');
+        // キーボードを閉じる（ブラウザの非同期フォーカス対策で遅延実行）
+        if (term && term.textarea) {
+          term.textarea.blur();
+          setTimeout(() => term.textarea.blur(), 50);
+        }
+      } else {
+        // スクロールモードOFF
+        scrollModeActive = false;
+        scrollModeBtn.classList.remove('active');
+        scrollModeBtn.setAttribute('aria-pressed', 'false');
+        terminalElement.classList.remove('scroll-mode');
+        // tmuxコピーモードを抜ける
+        if (socket && socket.connected) {
+          socket.emit('input', 'q');
+        }
+        log('スクロールモード OFF');
+      }
+      // スクロールモードOFFの時だけフォーカスを戻す（ON時はキーボードを開かない）
+      if (restoreFocus && !scrollModeActive) {
         term.focus();
       }
     }
@@ -2116,6 +2540,7 @@
     }
 
     document.addEventListener('touchstart', (e) => {
+      if (scrollModeActive) return;
       if (e.touches.length !== 1) return;
       const touch = e.touches[0];
       if (!isTouchInTerminal(touch)) return;
@@ -2126,6 +2551,7 @@
     }, { passive: true, capture: true });
 
     document.addEventListener('touchmove', (e) => {
+      if (scrollModeActive) return;
       if (e.touches.length !== 1 || touchScrollStartY === null) return;
 
       const touch = e.touches[0];
@@ -2161,6 +2587,78 @@
         touchScrollStartY = null;
         touchScrollLastY = null;
         touchScrollActive = false;
+      }
+    }, { passive: true, capture: true });
+
+    // ===========================================
+    // スクロールモード用タッチイベント
+    // ===========================================
+
+    let scrollAccumulator = 0; // スクロール量の蓄積用
+    let lastScrollTime = 0; // 最後にスクロールコマンドを送信した時刻
+    const SCROLL_THROTTLE = 30; // 30ms間隔でコマンド送信
+
+    // スクロールモード用touchstart（documentレベル、captureフェーズ）
+    document.addEventListener('touchstart', (e) => {
+      if (!scrollModeActive) return;
+      if (e.touches.length !== 1) return;
+
+      const touch = e.touches[0];
+      if (!isTouchInTerminal(touch)) return;
+
+      scrollTouchStartY = touch.clientY;
+      scrollLastY = scrollTouchStartY;
+      scrollTouchIdentifier = touch.identifier;
+    }, { passive: true, capture: true });
+
+    // スクロールモード用touchmove（documentレベル、captureフェーズ）
+    document.addEventListener('touchmove', (e) => {
+      if (!scrollModeActive) return;
+      if (scrollTouchIdentifier === null) return;
+
+      const touch = Array.from(e.touches).find(t => t.identifier === scrollTouchIdentifier);
+      if (!touch) return;
+
+      e.preventDefault(); // デフォルトスクロール抑制
+
+      const currentY = touch.clientY;
+      const deltaY = scrollLastY - currentY;
+      scrollLastY = currentY;
+
+      // tmuxコピーモード中はCtrl+u/Ctrl+dで半ページスクロール
+      scrollAccumulator += deltaY;
+      const threshold = 50; // 50px移動で半ページ
+      const now = Date.now();
+
+      // スロットリング: 前回送信から一定時間経過していない場合はスキップ
+      if (now - lastScrollTime < SCROLL_THROTTLE) {
+        return;
+      }
+
+      // 蓄積量に応じてスクロールコマンドを送信（1回のみ）
+      if (Math.abs(scrollAccumulator) >= threshold) {
+        if (scrollAccumulator > 0) {
+          // 上にスワイプ → Ctrl+d（下にスクロール＝過去を見る）
+          if (socket && socket.connected) {
+            socket.emit('input', '\x04'); // Ctrl+d
+          }
+          scrollAccumulator -= threshold;
+        } else {
+          // 下にスワイプ → Ctrl+u（上にスクロール＝新しい方を見る）
+          if (socket && socket.connected) {
+            socket.emit('input', '\x15'); // Ctrl+u
+          }
+          scrollAccumulator += threshold;
+        }
+        lastScrollTime = now;
+      }
+    }, { passive: false, capture: true });
+
+    // スクロールモード用touchend（documentレベル）
+    document.addEventListener('touchend', (e) => {
+      if (scrollModeActive && scrollTouchIdentifier !== null) {
+        scrollTouchIdentifier = null;
+        scrollAccumulator = 0;
       }
     }, { passive: true, capture: true });
 
@@ -2469,6 +2967,9 @@
     }, { passive: true });
 
     terminalElement.addEventListener('touchend', (e) => {
+      // スクロールモード中は画面端スワイプを無効化
+      if (scrollModeActive) return;
+
       const touch = e.changedTouches[0];
       const deltaX = touch.clientX - swipeStartX;
       const deltaY = Math.abs(touch.clientY - swipeStartY);

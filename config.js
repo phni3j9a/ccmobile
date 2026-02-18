@@ -36,8 +36,30 @@ const config = {
   UPLOAD_ALLOWED_TYPES: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
   UPLOAD_CLEANUP_DAYS: parseInt(process.env.UPLOAD_CLEANUP_DAYS, 10) || 7,
 
-  // マークダウンファイル設定
-  MD_MAX_FILE_SIZE: parseInt(process.env.MD_MAX_FILE_SIZE, 10) || 1 * 1024 * 1024 // 1MB
+  // ファイルマネージャー設定
+  FILE_MAX_SIZE: parseInt(process.env.FILE_MAX_SIZE || process.env.MD_MAX_FILE_SIZE, 10) || 1 * 1024 * 1024, // 1MB（テキスト読み書き上限）
+  FILE_UPLOAD_MAX_SIZE: parseInt(process.env.FILE_UPLOAD_MAX_SIZE, 10) || 50 * 1024 * 1024, // 50MB（汎用アップロード上限）
+
+  // テキストファイル拡張子
+  TEXT_EXTENSIONS: new Set([
+    '.md', '.txt', '.json', '.js', '.ts', '.jsx', '.tsx', '.mjs', '.cjs',
+    '.py', '.sh', '.bash', '.zsh', '.fish',
+    '.yml', '.yaml', '.toml', '.ini', '.cfg', '.conf', '.env',
+    '.xml', '.html', '.htm', '.css', '.scss', '.less',
+    '.sql', '.csv', '.tsv', '.log',
+    '.gitignore', '.dockerignore', '.editorconfig', '.eslintrc', '.prettierrc',
+    '.c', '.cpp', '.h', '.hpp', '.java', '.go', '.rs', '.rb', '.php', '.swift', '.kt',
+    '.r', '.m', '.mm', '.pl', '.pm', '.lua', '.vim', '.el',
+    '.patch', '.diff', '.cmake', '.gradle', '.properties',
+    '.service', '.socket', '.timer', '.mount'
+  ]),
+
+  // 拡張子なしでもテキストとして扱うファイル名
+  TEXT_FILENAMES: new Set([
+    'Makefile', 'Dockerfile', 'Vagrantfile', 'Gemfile', 'Rakefile',
+    'LICENSE', 'LICENCE', 'AUTHORS', 'CONTRIBUTORS', 'CHANGELOG',
+    'README', 'INSTALL', 'TODO', 'NOTICE', '.gitattributes'
+  ])
 };
 
 // 設定の検証

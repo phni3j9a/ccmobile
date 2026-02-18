@@ -71,14 +71,17 @@
 
   <!-- 特殊キーツールバー -->
   <div id="special-keys-toolbar" role="toolbar" aria-label="特殊キー入力">
+    <button class="key-btn scroll-btn" id="scroll-mode-btn" title="スクロールモード (Ctrl+b [)" aria-label="スクロールモード切り替え" aria-pressed="false">
+      <i data-lucide="scroll-text" class="icon"></i>
+    </button>
     <button class="key-btn settings-btn" id="settings-toggle" aria-label="設定を開く">
       <i data-lucide="settings" class="icon"></i>
     </button>
     <button class="key-btn image-btn" id="image-upload-btn" title="画像をアップロード" aria-label="画像をアップロード">
       <i data-lucide="image-plus" class="icon"></i>
     </button>
-    <button class="key-btn md-btn" id="md-viewer-btn" title="マークダウンビューア" aria-label="マークダウンビューア">
-      <i data-lucide="file-text" class="icon"></i>
+    <button class="key-btn fm-btn" id="fm-btn" title="ファイルマネージャー" aria-label="ファイルマネージャー">
+      <i data-lucide="folder" class="icon"></i>
     </button>
     <button class="key-btn" data-key="Escape" aria-label="Escape">Esc</button>
     <button class="key-btn" data-key="Tab" aria-label="Tab">Tab</button>
@@ -263,39 +266,69 @@
   </div>
   <div id="upload-modal-overlay" class="hidden" aria-hidden="true"></div>
 
-  <!-- マークダウンビューアモーダル -->
-  <div id="md-modal-overlay" class="hidden" aria-hidden="true"></div>
-  <div id="md-modal" class="hidden" role="dialog" aria-labelledby="md-title" aria-modal="true">
-    <div id="md-header">
-      <button id="md-back-btn" aria-label="戻る">
+  <!-- ファイルマネージャーモーダル -->
+  <div id="fm-modal-overlay" class="hidden" aria-hidden="true"></div>
+  <div id="fm-modal" class="hidden" role="dialog" aria-labelledby="fm-title" aria-modal="true">
+    <div id="fm-header">
+      <button id="fm-back-btn" aria-label="戻る">
         <i data-lucide="arrow-left" class="icon"></i>
       </button>
-      <span id="md-title">マークダウン</span>
-      <div id="md-header-actions">
-        <button id="md-hidden-toggle" aria-label="隠しファイルを表示" title="隠しファイル表示">
+      <span id="fm-title">ファイルマネージャー</span>
+      <div id="fm-header-actions">
+        <button id="fm-hidden-toggle" aria-label="隠しファイルを表示" title="隠しファイル表示">
           <i data-lucide="eye-off" class="icon"></i>
         </button>
-        <button id="md-mode-toggle" class="hidden" aria-label="編集モードに切り替え">
+        <button id="fm-mode-toggle" class="hidden" aria-label="編集モードに切り替え">
           <i data-lucide="pencil" class="icon"></i>
         </button>
-        <button id="md-save-btn" class="hidden" aria-label="保存">
+        <button id="fm-save-btn" class="hidden" aria-label="保存">
           <i data-lucide="save" class="icon"></i>
         </button>
-        <button id="md-close-btn" aria-label="閉じる">
+        <button id="fm-close-btn" aria-label="閉じる">
           <i data-lucide="x" class="icon"></i>
         </button>
       </div>
     </div>
-    <div id="md-browser">
-      <div id="md-breadcrumb"></div>
-      <div id="md-file-list"></div>
+    <div id="fm-browser">
+      <div id="fm-breadcrumb"></div>
+      <div id="fm-action-bar">
+        <button id="fm-upload-btn" class="fm-action-btn">
+          <i data-lucide="upload" class="icon"></i>
+          <span>アップロード</span>
+        </button>
+        <button id="fm-new-file-btn" class="fm-action-btn">
+          <i data-lucide="file-plus" class="icon"></i>
+          <span>新規ファイル</span>
+        </button>
+      </div>
+      <div id="fm-file-list"></div>
+      <input type="file" id="fm-file-input" multiple hidden>
     </div>
-    <div id="md-viewer" class="hidden">
-      <div id="md-rendered"></div>
+    <div id="fm-viewer" class="hidden">
+      <div id="fm-rendered"></div>
     </div>
-    <div id="md-editor" class="hidden">
-      <textarea id="md-editor-textarea" spellcheck="false"></textarea>
+    <div id="fm-editor" class="hidden">
+      <textarea id="fm-editor-textarea" spellcheck="false"></textarea>
     </div>
+  </div>
+
+  <!-- ファイルマネージャー ボトムシートメニュー -->
+  <div id="fm-sheet-overlay" class="hidden" aria-hidden="true"></div>
+  <div id="fm-bottom-sheet" class="hidden" role="menu" aria-label="ファイル操作">
+    <div class="fm-sheet-handle"></div>
+    <div id="fm-sheet-filename" class="fm-sheet-title"></div>
+    <button class="fm-sheet-item" id="fm-sheet-rename" role="menuitem">
+      <i data-lucide="pencil" class="icon"></i>
+      <span>名前を変更</span>
+    </button>
+    <button class="fm-sheet-item" id="fm-sheet-download" role="menuitem">
+      <i data-lucide="download" class="icon"></i>
+      <span>ダウンロード</span>
+    </button>
+    <button class="fm-sheet-item fm-sheet-danger" id="fm-sheet-delete" role="menuitem">
+      <i data-lucide="trash-2" class="icon"></i>
+      <span>削除</span>
+    </button>
   </div>
 
   <script src="/js/terminal.js"></script>
