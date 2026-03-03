@@ -85,6 +85,16 @@ function getFullSessionName(sessionName) {
 }
 
 /**
+ * tmux -t オプション用の完全一致セッション名を返す
+ * tmuxはデフォルトでプレフィックスマッチするため、= を付けて完全一致を強制
+ * @param {string} sessionName - セッション名
+ * @returns {string} 完全一致指定付きのセッション名
+ */
+function getExactTmuxTarget(sessionName) {
+  return '=' + getFullSessionName(sessionName);
+}
+
+/**
  * ファイルパスを検証する（ファイルマネージャーAPI用）
  * HOMEディレクトリ配下のみ許可、シンボリックリンク解決後も再検証
  * @param {string} filePath - 検証するファイルパス
@@ -169,16 +179,17 @@ function createTmuxSession(sessionName) {
     ], { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
 
     // tmux設定を適用（マウス操作有効化、スクロールバッファ増加）
+    const exactTarget = '=' + fullName;
     try {
-      execFileSync('tmux', ['set-option', '-t', fullName, 'mouse', 'on'],
+      execFileSync('tmux', ['set-option', '-t', exactTarget, 'mouse', 'on'],
         { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
-      execFileSync('tmux', ['set-option', '-t', fullName, 'history-limit', '10000'],
+      execFileSync('tmux', ['set-option', '-t', exactTarget, 'history-limit', '10000'],
         { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
       // Escキーの遅延を減らす（vimなどでの操作性向上）
-      execFileSync('tmux', ['set-option', '-t', fullName, 'escape-time', '10'],
+      execFileSync('tmux', ['set-option', '-t', exactTarget, 'escape-time', '10'],
         { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
       // viモードに設定（Ctrl+u/dで半ページスクロール可能にする）
-      execFileSync('tmux', ['set-window-option', '-t', fullName, 'mode-keys', 'vi'],
+      execFileSync('tmux', ['set-window-option', '-t', exactTarget, 'mode-keys', 'vi'],
         { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
     } catch (configErr) {
       console.error('tmux設定エラー（続行）:', configErr.message);
@@ -195,15 +206,15 @@ function createTmuxSession(sessionName) {
 // tmuxセッションの設定を適用
 function applyTmuxSettings(sessionName) {
   try {
-    const fullName = getFullSessionName(sessionName);
+    const exactTarget = getExactTmuxTarget(sessionName);
 
-    execFileSync('tmux', ['set-option', '-t', fullName, 'mouse', 'on'],
+    execFileSync('tmux', ['set-option', '-t', exactTarget, 'mouse', 'on'],
       { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
-    execFileSync('tmux', ['set-option', '-t', fullName, 'history-limit', '10000'],
+    execFileSync('tmux', ['set-option', '-t', exactTarget, 'history-limit', '10000'],
       { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
-    execFileSync('tmux', ['set-option', '-t', fullName, 'escape-time', '10'],
+    execFileSync('tmux', ['set-option', '-t', exactTarget, 'escape-time', '10'],
       { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
-    execFileSync('tmux', ['set-window-option', '-t', fullName, 'mode-keys', 'vi'],
+    execFileSync('tmux', ['set-window-option', '-t', exactTarget, 'mode-keys', 'vi'],
       { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
   } catch (e) {
     // 設定エラーは無視（既に設定済みの場合など）
@@ -216,11 +227,12 @@ function applyTmuxSettings(sessionName) {
 // tmuxセッションにアタッチ（PTY経由）
 function attachTmuxSession(sessionName) {
   const fullName = getFullSessionName(sessionName);
+  const exactTarget = '=' + fullName;
 
   // アタッチ前に設定を適用（既存セッション用）
   applyTmuxSettings(fullName);
 
-  const ptyProcess = pty.spawn('tmux', ['attach-session', '-t', fullName], {
+  const ptyProcess = pty.spawn('tmux', ['attach-session', '-t', exactTarget], {
     name: 'xterm-256color',
     cols: 80,
     rows: 24,
@@ -242,7 +254,7 @@ function killTmuxSession(sessionName) {
   try {
     const fullName = getFullSessionName(sessionName);
 
-    execFileSync('tmux', ['kill-session', '-t', fullName],
+    execFileSync('tmux', ['kill-session', '-t', '=' + fullName],
       { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
     console.log('tmuxセッション削除:', fullName);
     return { success: true };
@@ -257,7 +269,7 @@ function tmuxSessionExists(sessionName) {
   try {
     const fullName = getFullSessionName(sessionName);
 
-    execFileSync('tmux', ['has-session', '-t', fullName],
+    execFileSync('tmux', ['has-session', '-t', '=' + fullName],
       { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
     return true;
   } catch (e) {
@@ -317,7 +329,7 @@ app.put('/api/sessions/:name/rename', (req, res) => {
     validateSessionName(newName.trim());
     const newFullName = config.SESSION_PREFIX + newName.trim();
 
-    execFileSync('tmux', ['rename-session', '-t', oldFullName, newFullName],
+    execFileSync('tmux', ['rename-session', '-t', '=' + oldFullName, newFullName],
       { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
     console.log('tmuxセッション名変更:', oldFullName, '->', newFullName);
     res.json({ success: true, name: newFullName, displayName: newName.trim() });
@@ -829,11 +841,8 @@ async function refreshAccessToken(refreshToken) {
 }
 
 // credentials.jsonを更新
-function updateCredentials(newTokenData) {
+function updateCredentials(newTokenData, credentialsPath) {
   const fs = require('fs');
-  const path = require('path');
-
-  const credentialsPath = path.join(process.env.HOME, '.claude', '.credentials.json');
 
   try {
     const credentials = JSON.parse(fs.readFileSync(credentialsPath, 'utf-8'));
@@ -860,7 +869,7 @@ function updateCredentials(newTokenData) {
 }
 
 // トークンを検証し、必要に応じてリフレッシュ
-async function ensureValidToken(oauth) {
+async function ensureValidToken(oauth, credentialsPath) {
   // expiresAtがない場合は有効とみなす
   if (!oauth.expiresAt) {
     return { valid: true, accessToken: oauth.accessToken };
@@ -891,7 +900,7 @@ async function ensureValidToken(oauth) {
 
     if (result.success) {
       // credentials.jsonを更新
-      updateCredentials(result);
+      updateCredentials(result, credentialsPath);
       console.log('トークンリフレッシュ成功');
       return { valid: true, accessToken: result.accessToken };
     } else {
@@ -911,46 +920,43 @@ async function ensureValidToken(oauth) {
   }
 }
 
-// Claude Code使用量取得
-app.get('/api/usage/claude', async (req, res) => {
-  try {
-    const fs = require('fs');
-    const path = require('path');
-    const https = require('https');
+// 指定パスのcredentialsからClaude Code使用量を取得
+async function fetchUsageForAccount(credentialsPath) {
+  const fs = require('fs');
+  const https = require('https');
 
-    const credentialsPath = path.join(process.env.HOME, '.claude', '.credentials.json');
+  if (!fs.existsSync(credentialsPath)) {
+    return { success: false, error: 'Claude Code認証情報が見つかりません' };
+  }
 
-    if (!fs.existsSync(credentialsPath)) {
-      return res.json({ success: false, error: 'Claude Code認証情報が見つかりません' });
-    }
+  const credentials = JSON.parse(fs.readFileSync(credentialsPath, 'utf-8'));
+  const oauth = credentials.claudeAiOauth;
 
-    const credentials = JSON.parse(fs.readFileSync(credentialsPath, 'utf-8'));
-    const oauth = credentials.claudeAiOauth;
+  if (!oauth || !oauth.accessToken) {
+    return { success: false, error: 'アクセストークンが見つかりません' };
+  }
 
-    if (!oauth || !oauth.accessToken) {
-      return res.json({ success: false, error: 'アクセストークンが見つかりません' });
-    }
+  // user:profileスコープが必要
+  if (!oauth.scopes || !oauth.scopes.includes('user:profile')) {
+    return {
+      success: false,
+      error: 'user:profileスコープがありません。claude loginで再認証してください',
+      requireReauth: true
+    };
+  }
 
-    // user:profileスコープが必要
-    if (!oauth.scopes || !oauth.scopes.includes('user:profile')) {
-      return res.json({
-        success: false,
-        error: 'user:profileスコープがありません。claude loginで再認証してください',
-        requireReauth: true
-      });
-    }
+  // トークンを検証し、必要に応じてリフレッシュ
+  const tokenResult = await ensureValidToken(oauth, credentialsPath);
+  if (!tokenResult.valid) {
+    return {
+      success: false,
+      error: tokenResult.error,
+      requireReauth: tokenResult.requireReauth || false
+    };
+  }
+  const accessToken = tokenResult.accessToken;
 
-    // トークンを検証し、必要に応じてリフレッシュ
-    const tokenResult = await ensureValidToken(oauth);
-    if (!tokenResult.valid) {
-      return res.json({
-        success: false,
-        error: tokenResult.error,
-        requireReauth: tokenResult.requireReauth || false
-      });
-    }
-    const accessToken = tokenResult.accessToken;
-
+  return new Promise((resolve) => {
     const options = {
       hostname: 'api.anthropic.com',
       path: '/api/oauth/usage',
@@ -962,65 +968,95 @@ app.get('/api/usage/claude', async (req, res) => {
         'Accept': 'application/json'
       }
     };
-    
+
     const apiReq = https.request(options, (apiRes) => {
       let data = '';
       apiRes.on('data', chunk => data += chunk);
       apiRes.on('end', () => {
-        // 既にレスポンス送信済みならスキップ（タイムアウトやエラーとの競合防止）
-        if (res.headersSent) {
-          return;
-        }
         try {
           const parsed = JSON.parse(data);
 
-          // HTTPステータスコードチェック
           if (apiRes.statusCode !== 200) {
             const errorMsg = parsed.error?.message || parsed.message || `API error: ${apiRes.statusCode}`;
-            return res.json({
+            return resolve({
               success: false,
               error: errorMsg,
               requireReauth: apiRes.statusCode === 401
             });
           }
 
-          // APIエラーレスポンスのチェック（type: "error"など）
           if (parsed.type === 'error' || parsed.error) {
             const errorMsg = parsed.error?.message || parsed.message || 'APIエラーが発生しました';
-            return res.json({
+            return resolve({
               success: false,
               error: errorMsg,
               requireReauth: false
             });
           }
 
-          res.json({
+          resolve({
             success: true,
             usage: parsed,
             subscriptionType: oauth.subscriptionType || 'unknown'
           });
         } catch (e) {
-          if (!res.headersSent) {
-            res.json({ success: false, error: 'レスポンスの解析に失敗しました' });
-          }
+          resolve({ success: false, error: 'レスポンスの解析に失敗しました' });
         }
       });
     });
-    
+
     apiReq.on('error', (e) => {
-      if (!res.headersSent) {
-        res.json({ success: false, error: e.message });
-      }
+      resolve({ success: false, error: e.message });
     });
 
     apiReq.setTimeout(5000, () => {
       apiReq.destroy();
-      if (!res.headersSent) {
-        res.json({ success: false, error: 'タイムアウト' });
-      }
+      resolve({ success: false, error: 'タイムアウト' });
     });
-    
+
     apiReq.end();
+  });
+}
+
+// Claude Code使用量取得（後方互換性維持）
+app.get('/api/usage/claude', async (req, res) => {
+  try {
+    const path = require('path');
+    const credentialsPath = path.join(process.env.HOME, '.claude', '.credentials.json');
+    const result = await fetchUsageForAccount(credentialsPath);
+    res.json(result);
+  } catch (e) {
+    res.json({ success: false, error: e.message });
+  }
+});
+
+// 全アカウントのClaude Code使用量を一括取得
+app.get('/api/usage/claude/all', async (req, res) => {
+  try {
+    const results = await Promise.allSettled(
+      config.CLAUDE_ACCOUNTS.map(async (account) => {
+        const usage = await fetchUsageForAccount(account.credentialsPath);
+        return {
+          id: account.id,
+          label: account.label,
+          ...usage
+        };
+      })
+    );
+
+    const accounts = results.map((result, index) => {
+      if (result.status === 'fulfilled') {
+        return result.value;
+      }
+      return {
+        id: config.CLAUDE_ACCOUNTS[index].id,
+        label: config.CLAUDE_ACCOUNTS[index].label,
+        success: false,
+        error: result.reason?.message || '取得に失敗しました'
+      };
+    });
+
+    res.json({ success: true, accounts });
   } catch (e) {
     res.json({ success: false, error: e.message });
   }

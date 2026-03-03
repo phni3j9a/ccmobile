@@ -30,6 +30,22 @@ const config = {
   // トークンリフレッシュ設定（ミリ秒）
   TOKEN_REFRESH_BUFFER_MS: parseInt(process.env.TOKEN_REFRESH_BUFFER_MS, 10) || 5 * 60 * 1000,
 
+  // Claude アカウント設定
+  CLAUDE_ACCOUNTS: [
+    {
+      id: 'main',
+      label: 'メイン',
+      credentialsPath: process.env.CLAUDE_MAIN_CREDENTIALS
+        || require('path').join(process.env.HOME, '.claude', '.credentials.json'),
+    },
+    {
+      id: 'sub',
+      label: 'サブ',
+      credentialsPath: process.env.CLAUDE_SUB_CREDENTIALS
+        || require('path').join(process.env.HOME, '.claude-sub', '.credentials.json'),
+    }
+  ],
+
   // 画像アップロード設定
   UPLOAD_DIR: process.env.UPLOAD_DIR || require('path').join(process.env.HOME, 'uploads', 'ccmobile'),
   UPLOAD_MAX_SIZE: parseInt(process.env.UPLOAD_MAX_SIZE, 10) || 10 * 1024 * 1024, // 10MB

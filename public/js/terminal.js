@@ -90,7 +90,7 @@
 
     // 状態
     let usageUpdateTimer = null;
-    let lastUsageData = null;
+    let lastUsageData = {};
     let scrollModeActive = false;
     let scrollTouchStartY = 0;
     let scrollLastY = 0;
@@ -2188,56 +2188,69 @@
       closeSettings();
     }
 
-    // Claude Code使用量を取得・表示
+    // Claude Code使用量を取得・表示（全アカウント対応）
     async function fetchClaudeUsage() {
       const container = document.getElementById('claude-usage-container');
       container.innerHTML = '<div class="usage-loading">読み込み中...</div>';
 
       try {
-        const response = await fetch('/api/usage/claude');
+        const response = await fetch('/api/usage/claude/all');
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
         const data = await response.json();
 
-        if (!data.success) {
-          // errorがオブジェクトの場合は適切にメッセージを抽出
-          let errorMessage = data.error;
-          if (typeof data.error === 'object' && data.error !== null) {
-            errorMessage = data.error.message || JSON.stringify(data.error);
-          }
-          let errorHtml = `<div class="usage-error">${escapeHtml(errorMessage)}</div>`;
-          if (data.requireReauth) {
-            errorHtml += `<div class="usage-reauth-hint">ターミナルで <code>claude</code> を実行して再認証してください</div>`;
-          }
-          container.innerHTML = errorHtml;
+        if (!data.success || !data.accounts) {
+          const errorMessage = data.error || '取得に失敗しました';
+          container.innerHTML = `<div class="usage-error">${escapeHtml(errorMessage)}</div>`;
           return;
         }
 
-        const usage = data.usage;
         let html = '';
 
-        // 5時間制限
-        if (usage.five_hour) {
-          const resetTime = new Date(usage.five_hour.resets_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-          html += createUsageBar('5時間制限', usage.five_hour.utilization, `${resetTime} リセット`);
-        }
+        for (const account of data.accounts) {
+          html += `<div class="usage-account-section">`;
+          html += `<div class="usage-account-header">${escapeHtml(account.label)}</div>`;
 
-        // 7日間制限
-        if (usage.seven_day) {
-          const resetDate = new Date(usage.seven_day.resets_at).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' });
-          html += createUsageBar('7日間制限', usage.seven_day.utilization, `${resetDate} リセット`);
-        }
+          if (!account.success) {
+            let errorMessage = account.error;
+            if (typeof account.error === 'object' && account.error !== null) {
+              errorMessage = account.error.message || JSON.stringify(account.error);
+            }
+            html += `<div class="usage-error">${escapeHtml(errorMessage)}</div>`;
+            if (account.requireReauth) {
+              html += `<div class="usage-reauth-hint">ターミナルで <code>claude</code> を実行して再認証してください</div>`;
+            }
+            html += `</div>`;
+            continue;
+          }
 
-        // 追加使用枠 (Pro/Max)
-        if (usage.extra_usage && usage.extra_usage.is_enabled) {
-          const used = usage.extra_usage.used_credits.toFixed(0);
-          const limit = usage.extra_usage.monthly_limit;
-          html += createUsageBar('追加使用枠', usage.extra_usage.utilization, `${used}/${limit} クレジット`);
-        }
+          const usage = account.usage;
 
-        // サブスクリプションタイプ
-        html += `<div class="subscription-type">プラン: ${escapeHtml(data.subscriptionType)}</div>`;
+          // 5時間制限
+          if (usage.five_hour) {
+            const resetTime = new Date(usage.five_hour.resets_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+            html += createUsageBar('5時間制限', usage.five_hour.utilization, `${resetTime} リセット`);
+          }
+
+          // 7日間制限
+          if (usage.seven_day) {
+            const resetDate = new Date(usage.seven_day.resets_at).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' });
+            html += createUsageBar('7日間制限', usage.seven_day.utilization, `${resetDate} リセット`);
+          }
+
+          // 追加使用枠 (Pro/Max)
+          if (usage.extra_usage && usage.extra_usage.is_enabled) {
+            const used = usage.extra_usage.used_credits.toFixed(0);
+            const limit = usage.extra_usage.monthly_limit;
+            html += createUsageBar('追加使用枠', usage.extra_usage.utilization, `${used}/${limit} クレジット`);
+          }
+
+          // サブスクリプションタイプ
+          html += `<div class="subscription-type">プラン: ${escapeHtml(account.subscriptionType)}</div>`;
+
+          html += `</div>`;
+        }
 
         container.innerHTML = html || '<div class="usage-error">使用量データがありません</div>';
       } catch (e) {
@@ -2273,8 +2286,6 @@
     // ===========================================
 
     const usageIndicator = document.getElementById('usage-indicator');
-    const usage5hEl = document.getElementById('usage-5h');
-    const usage7dEl = document.getElementById('usage-7d');
     const usageRefreshBtn = document.getElementById('usage-refresh');
 
     // パーセントに応じたCSSクラスを返す
@@ -2284,50 +2295,62 @@
       return 'usage-normal';
     }
 
-    // ステータスバーの使用量インジケーターを更新
+    // ステータスバーの使用量インジケーターを更新（全アカウント対応）
     async function updateUsageIndicator() {
       if (usageRefreshBtn) {
         usageRefreshBtn.classList.add('spinning');
       }
 
       try {
-        const response = await fetch('/api/usage/claude');
+        const response = await fetch('/api/usage/claude/all');
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
         }
         const data = await response.json();
 
-        if (!data.success) {
-          // エラー時は非表示
+        if (!data.success || !data.accounts) {
           if (usageIndicator) usageIndicator.classList.add('hidden');
           return;
         }
 
-        lastUsageData = data.usage;
+        let anySuccess = false;
 
-        // 5時間制限
-        if (data.usage.five_hour && usage5hEl) {
-          const percent = Math.min(100, Math.max(0, data.usage.five_hour.utilization));
-          usage5hEl.textContent = `${percent.toFixed(0)}%`;
-          usage5hEl.className = 'usage-value ' + getUsageClass(percent);
+        for (const account of data.accounts) {
+          if (!account.success) continue;
+          anySuccess = true;
+
+          lastUsageData[account.id] = account.usage;
+
+          const el5h = document.getElementById(`usage-${account.id}-5h`);
+          const el7d = document.getElementById(`usage-${account.id}-7d`);
+
+          // 5時間制限
+          if (account.usage.five_hour && el5h) {
+            const percent = Math.min(100, Math.max(0, account.usage.five_hour.utilization));
+            el5h.textContent = percent.toFixed(0);
+            el5h.className = 'usage-value ' + getUsageClass(percent);
+          }
+
+          // 7日間制限
+          if (account.usage.seven_day && el7d) {
+            const percent = Math.min(100, Math.max(0, account.usage.seven_day.utilization));
+            el7d.textContent = percent.toFixed(0);
+            el7d.className = 'usage-value ' + getUsageClass(percent);
+          }
         }
 
-        // 7日間制限
-        if (data.usage.seven_day && usage7dEl) {
-          const percent = Math.min(100, Math.max(0, data.usage.seven_day.utilization));
-          usage7dEl.textContent = `${percent.toFixed(0)}%`;
-          usage7dEl.className = 'usage-value ' + getUsageClass(percent);
-        }
-
-        // インジケーターを表示
+        // 少なくとも1つ成功していればインジケーター表示
         if (usageIndicator) {
-          usageIndicator.classList.remove('hidden');
+          if (anySuccess) {
+            usageIndicator.classList.remove('hidden');
+          } else {
+            usageIndicator.classList.add('hidden');
+          }
         }
 
         log('使用量インジケーター更新完了');
       } catch (e) {
         log('使用量インジケーター更新エラー: ' + e.message);
-        // エラー時は非表示
         if (usageIndicator) usageIndicator.classList.add('hidden');
       } finally {
         if (usageRefreshBtn) {
